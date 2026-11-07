@@ -1,0 +1,195 @@
+# NovelForge — API Specification
+
+Base path: `/api/v1`  
+Format: JSON, UTF-8  
+Authentication: secure session cookie for browser; bearer token for API clients (future).  
+All endpoints are scoped to the authenticated user and novel membership.
+
+## 1. Common conventions
+
+- IDs are UUID strings.
+- Timestamps are ISO 8601 UTC.
+- Pagination: `limit` (default 20, max 100), `cursor` (opaque).
+- Errors use `application/problem+json`.
+- Mutating chapter endpoints require `If-Match` or `expected_version`.
+- Never accept arbitrary SQL, filesystem paths or shell commands from clients.
+
+### Error shape
+
+```json
+{
+  "type": "https://novelforge.dev/problems/version-conflict",
+  "title": "Version conflict",
+  "status": 409,
+  "detail": "The chapter has changed since it was loaded.",
+  "code": "CHAPTER_VERSION_CONFLICT",
+  "request_id": "..."
+}
+```
+
+## 2. Endpoint groups
+
+### Auth
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/logout`
+- `GET /auth/me`
+
+### Novels
+- `GET /novels`
+- `POST /novels`
+- `GET /novels/{novel_id}`
+- `PATCH /novels/{novel_id}`
+- `DELETE /novels/{novel_id}` (archive, not hard delete)
+- `GET /novels/{novel_id}/export`
+- `POST /novels/import`
+
+### Canon
+- `GET|POST /novels/{novel_id}/characters`
+- `GET|PATCH|DELETE /novels/{novel_id}/characters/{character_id}`
+- `GET|POST /novels/{novel_id}/characters/{character_id}/states`
+- `GET|POST /novels/{novel_id}/relationships`
+- `GET|POST /novels/{novel_id}/locations`
+- `GET|POST /novels/{novel_id}/factions`
+- `GET|POST /novels/{novel_id}/world-rules`
+- `GET /novels/{novel_id}/canon/revisions`
+- `POST /novels/{novel_id}/canon/proposals/{proposal_id}/approve`
+- `POST /novels/{novel_id}/canon/proposals/{proposal_id}/reject`
+
+### Planning and chapters
+- `GET|POST /novels/{novel_id}/outlines`
+- `PATCH|DELETE /novels/{novel_id}/outlines/{node_id}`
+- `GET|POST /novels/{novel_id}/chapters`
+- `GET|PATCH /novels/{novel_id}/chapters/{chapter_id}`
+- `GET /novels/{novel_id}/chapters/{chapter_id}/versions`
+- `POST /novels/{novel_id}/chapters/{chapter_id}/restore/{version_id}`
+- `GET|POST /novels/{novel_id}/events`
+- `GET|POST /novels/{novel_id}/foreshadowings`
+
+### Knowledge and consistency
+- `POST /novels/{novel_id}/knowledge/ingest`
+- `GET /novels/{novel_id}/knowledge/search`
+- `POST /novels/{novel_id}/consistency/check`
+- `GET /novels/{novel_id}/consistency/issues`
+- `POST /novels/{novel_id}/consistency/issues/{issue_id}/resolve`
+
+### AI
+- `GET|POST /novels/{novel_id}/ai/model-profiles`
+- `POST /novels/{novel_id}/ai/generations`
+- `GET /novels/{novel_id}/ai/generations/{generation_id}`
+- `POST /novels/{novel_id}/ai/generations/{generation_id}/cancel`
+- `POST /novels/{novel_id}/ai/generations/{generation_id}/accept`
+
+## 3. Key request/response examples
+
+### Create novel
+
+`POST /api/v1/novels`
+
+```json
+{
+  "title": "星海纪元",
+  "language": "zh-CN",
+  "genre": ["仙侠", "成长"],
+  "premise": "一个外门弟子逐步揭开古老星海秘密。",
+  "writing_preferences": {
+    "pov": "third_person_limited",
+    "tense": "past",
+    "style_notes": []
+  }
+}
+```
+
+Response `201`:
+
+```json
+{
+  "id": "uuid",
+  "title": "星海纪元",
+  "language": "zh-CN",
+  "status": "active",
+  "created_at": "2026-01-01T00:00:00Z"
+}
+```
+
+### Save chapter content
+
+`PATCH /api/v1/novels/{novel_id}/chapters/{chapter_id}`
+
+Headers: `If-Match: "7"`
+
+```json
+{
+  "title": "第二十章：禁地",
+  "content_format": "tiptap",
+  "content": {"type": "doc", "content": []},
+  "markdown": null
+}
+```
+
+A successful response returns new version `8` and `ETag: "8"`. Stale updates return `409`.
+
+### Search knowledge
+
+`GET /api/v1/novels/{novel_id}/knowledge/search?q=林渊&limit=10`
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "chunk_id": "uuid",
+      "source_type": "chapter",
+      "source_id": "uuid",
+      "source_title": "第十二章：石碑",
+      "revision": 3,
+      "snippet": "...",
+      "score": 0.91,
+      "story_order": 12
+    }
+  ]
+}
+```
+
+### Start generation
+
+`POST /api/v1/novels/{novel_id}/ai/generations`
+
+```json
+{
+  "task": "draft_chapter",
+  "chapter_id": "uuid",
+  "instructions": "描写主角进入禁地后的探索，保持谨慎内敛的性格。",
+  "model_profile_id": "uuid",
+  "context_options": {
+    "include_recent_chapters": 3,
+    "include_open_foreshadowing": true,
+    "story_order": 20
+  },
+  "output": {
+    "format": "markdown",
+    "max_tokens": 5000
+  }
+}
+```
+
+Response `202`:
+
+```json
+{
+  "generation_id": "uuid",
+  "status": "queued"
+}
+```
+
+## 4. API security rules
+
+- Verify membership before resolving any novel-scoped resource.
+- Verify child resource belongs to the path's novel.
+- Apply authorization to tool calls, not only HTTP routes.
+- Rate-limit generation and ingestion.
+- Redact secrets and manuscript content from routine logs.
+- Validate all provider output against schemas.
+- Use CSRF protection for cookie-authenticated browser mutations.
+- Limit upload size, MIME types and archive extraction paths.

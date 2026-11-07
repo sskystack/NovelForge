@@ -1,0 +1,238 @@
+openapi: 3.1.0
+info:
+  title: NovelForge API
+  version: 1.0.0
+  description: API contract baseline for NovelForge.
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+paths:
+  /auth/me:
+    get:
+      summary: Get current user
+      responses:
+        "200":
+          description: Current authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /novels:
+    get:
+      summary: List novels accessible to current user
+      responses:
+        "200":
+          description: Novel list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Novel"
+    post:
+      summary: Create novel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NovelCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Novel"
+  /novels/{novel_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: Get novel
+      responses:
+        "200":
+          description: Novel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Novel"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      summary: Update novel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                premise: { type: string }
+                writing_preferences: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Novel"
+  /novels/{novel_id}/characters:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: List characters
+      responses:
+        "200":
+          description: Character list
+    post:
+      summary: Create character
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterCreate"
+      responses:
+        "201":
+          description: Created
+  /novels/{novel_id}/knowledge/search:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: Hybrid search within a novel
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 1000 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        "200":
+          description: Search results with source provenance
+  /novels/{novel_id}/ai/generations:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    post:
+      summary: Start AI generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerationCreate"
+      responses:
+        "202":
+          description: Generation accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [generation_id, status]
+                properties:
+                  generation_id: { type: string, format: uuid }
+                  status: { type: string, enum: [queued] }
+  /novels/{novel_id}/chapters/{chapter_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - name: chapter_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      summary: Update chapter using optimistic concurrency
+      parameters:
+        - in: header
+          name: If-Match
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content_format]
+              properties:
+                title: { type: string }
+                content_format: { type: string, enum: [tiptap, markdown] }
+                content: { type: object, additionalProperties: true }
+                markdown: { type: string }
+      responses:
+        "200":
+          description: New version saved
+        "409":
+          description: Version conflict
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: novelforge_session
+  parameters:
+    NovelId:
+      name: novel_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized:
+      description: Authentication required
+    NotFound:
+      description: Resource not found
+  schemas:
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        display_name: { type: string }
+    Novel:
+      type: object
+      required: [id, title, language, status]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        language: { type: string }
+        premise: { type: string }
+        status: { type: string, enum: [active, archived] }
+        created_at: { type: string, format: date-time }
+    NovelCreate:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        language: { type: string, default: zh-CN }
+        genre:
+          type: array
+          items: { type: string }
+        premise: { type: string }
+        writing_preferences: { type: object, additionalProperties: true }
+    CharacterCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        summary: { type: string }
+        personality: { type: object, additionalProperties: true }
+        background: { type: string }
+        goals: { type: array, items: { type: string } }
+        constraints: { type: array, items: { type: string } }
+    GenerationCreate:
+      type: object
+      required: [task, instructions]
+      properties:
+        task:
+          type: string
+          enum: [draft_chapter, outline, rewrite, critique, summary]
+        chapter_id: { type: string, format: uuid }
+        instructions: { type: string, maxLength: 10000 }
+        model_profile_id: { type: string, format: uuid }
+        context_options: { type: object, additionalProperties: true }
+        output: { type: object, additionalProperties: true }
