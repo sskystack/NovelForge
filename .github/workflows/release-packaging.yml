@@ -1,0 +1,67 @@
+name: Native packaging
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  desktop:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+            bundle: dmg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle: nsis
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+      - uses: astral-sh/setup-uv@v5
+      - run: npm ci --prefix apps/web
+      - run: uv sync --directory apps/api --locked
+      - run: python -m pip install pyinstaller
+      - run: python -m PyInstaller --noconfirm --clean --onefile --name novelforge-api --distpath apps/desktop/src-tauri/binaries --paths apps/api apps/api/novelforge/desktop_entry.py
+      - shell: bash
+        run: mv apps/desktop/src-tauri/binaries/novelforge-api apps/desktop/src-tauri/binaries/novelforge-api-${{ matrix.target }}${{ runner.os == 'Windows' && '.exe' || '' }}
+      - run: npm exec --prefix apps/desktop -- tauri build --bundles ${{ matrix.bundle }} --target ${{ matrix.target }} --no-sign
+      - uses: actions/upload-artifact@v4
+        with:
+          name: novelforge-${{ matrix.target }}
+          path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/**
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: npm ci --prefix apps/web
+      - run: npm ci --prefix apps/desktop
+      - run: npm run build --prefix apps/web
+      - run: npm exec --prefix apps/desktop -- tauri android init --ci --skip-targets-install
+      - run: npm exec --prefix apps/desktop -- tauri android build --apk --ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: novelforge-android
+          path: apps/desktop/src-tauri/gen/android/**/build/outputs/apk/**/*.apk

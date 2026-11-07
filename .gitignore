@@ -17,3 +17,6 @@ dist/
 .DS_Store
 *.log
 apps/web/.tsbuildinfo
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/gen/

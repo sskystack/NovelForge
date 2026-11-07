@@ -4,6 +4,7 @@ import { BookOpen, Check, ChevronRight, FileText, LogOut, Plus, RotateCcw, Save,
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
+import { isTauri } from "@tauri-apps/api/core";
 
 type User = { id: string; email: string; display_name: string };
 type Novel = { id: string; title: string; premise: string; status: string };
@@ -13,6 +14,7 @@ type Mode = "rich" | "markdown";
 type Generation = { id: string; status: string; output: { markdown?: string; source_ids?: string[] }; expected_version: number | null };
 type Analysis = { id: string; chapter_version_id: string; summary_candidate: string; candidates: { events: unknown[]; character_states: unknown[]; consistency_warnings: unknown[] }; proposal_ids: string[] };
 type AnalysisProposal = { id: string; proposal_type: string; payload: Record<string, unknown>; evidence: Record<string, unknown>; status: string };
+let apiOrigin = "";
 
 function parseMarkdown(markdown: string): Record<string, unknown> {
   const nodes: Record<string, unknown>[] = [];
@@ -42,7 +44,7 @@ function serializeMarkdown(document: Record<string, unknown>): string {
 }
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<{ data: T; response: Response }> {
-  const response = await fetch(`/api/v1${path}`, { credentials: "include", ...init, headers: { "Content-Type": "application/json", ...(init.headers || {}) } });
+  const response = await fetch(`${apiOrigin}/api/v1${path}`, { credentials: "include", ...init, headers: { "Content-Type": "application/json", ...(init.headers || {}) } });
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) throw new Error(`${data?.code ? `${data.code}: ` : ""}${data?.detail || "Request failed"}`);
@@ -99,6 +101,13 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [analysisProposals, setAnalysisProposals] = useState<AnalysisProposal[]>([]);
   const [busyAI, setBusyAI] = useState(false);
   const [serviceStatus, setServiceStatus] = useState<"checking" | "ready" | "unavailable">("checking");
+
+  useEffect(() => {
+    if (isTauri()) {
+      const origin = window.localStorage.getItem("novelforge.apiOrigin");
+      if (origin) apiOrigin = origin.replace(/\/+$/, "");
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
