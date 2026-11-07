@@ -20,7 +20,16 @@ pub fn run() {
                 let data_dir = _app.path().app_data_dir()?;
                 std::fs::create_dir_all(&data_dir)?;
                 let api_origin = "http://127.0.0.1:8765";
-                let mut command = Command::new("binaries/novelforge-api");
+                let sidecar_name = if cfg!(target_os = "windows") {
+                    "novelforge-api.exe"
+                } else {
+                    "novelforge-api"
+                };
+                let sidecar_path = std::env::current_exe()?
+                    .parent()
+                    .ok_or_else(|| std::io::Error::other("desktop executable has no parent"))?
+                    .join(sidecar_name);
+                let mut command = Command::new(sidecar_path);
                 command
                     .env("APP_ENV", "development")
                     .env(
