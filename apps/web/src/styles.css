@@ -68,6 +68,20 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .rich-editor blockquote { margin: 1em 0; border-left: 3px solid #8bb497; padding-left: 16px; color: #647269; }
 .markdown-editor { width: 100%; resize: vertical; border: 1px solid #dbe4dc; padding: 18px; outline: none; background: #fbfdfb; color: #26362b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }
 .history-panel .sidebar-heading { margin-bottom: 20px; }
+.ai-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.secondary { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #cad8cc; padding: 8px 11px; background: #f5f8f5; color: #315b3d; font-size: 12px; font-weight: 700; }
+.secondary:hover { border-color: #8ab195; background: #e9f2e9; }
+.review-panel { margin: 20px 0; border-top: 1px solid #dfe8e0; border-bottom: 1px solid #dfe8e0; padding: 16px 0; }
+.review-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.review-heading h2 { margin: 0; color: #263a2b; font-size: 17px; }
+.review-heading span, .proposal-row small { color: #728076; font-size: 12px; }
+.review-panel > pre, .proposal-row pre { max-height: 320px; overflow: auto; margin: 12px 0; padding: 12px; background: #f5f8f5; color: #314238; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-actions, .proposal-actions { display: flex; align-items: center; gap: 8px; }
+.analysis-summary { color: #4e5e53; font-size: 14px; line-height: 1.65; white-space: pre-wrap; }
+.proposal-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 12px 0; border-top: 1px solid #e5ece5; }
+.proposal-row strong { color: #315b3d; font-size: 12px; text-transform: capitalize; }
+.proposal-row pre { max-height: 180px; font-size: 11px; }
+.proposal-actions { padding-top: 8px; }
 .version-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 0; border-bottom: 1px solid #e8eee8; }
 .version-row strong { display: block; color: #304239; font-size: 13px; }
 .version-row small { display: block; margin-top: 4px; color: #829087; font-size: 11px; }

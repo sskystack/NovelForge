@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from novelforge.ai.context import compile_context
 from novelforge.ai.factory import create_chat_provider
-from novelforge.ai.generation_models import GenerationSession, GenerationStatus
+from novelforge.ai.generation_models import GenerationSession, GenerationStatus, TaskProfile
 from novelforge.ai.generation_schemas import GenerationCreate
 from novelforge.ai.providers import ChatMessage, ProviderError
 from novelforge.errors import Problem
@@ -50,10 +50,25 @@ def start_generation(
     db.add(session)
     db.flush()
     prompt = "\n".join(section["text"] for section in context.get("sections", []))
+    system_prompts = {
+        TaskProfile.OUTLINE: (
+            "Draft outline material for the author's review. Do not modify persisted outlines."
+        ),
+        TaskProfile.WRITING: (
+            "Draft chapter prose for the author's review. Do not modify the manuscript."
+        ),
+        TaskProfile.SUMMARY: (
+            "Draft a concise chapter summary for the author's review. "
+            "Do not modify chapter metadata."
+        ),
+        TaskProfile.CRITIQUE: (
+            "Critique the chapter and cite concrete issues. Do not modify the manuscript."
+        ),
+    }
     try:
         response = provider.chat(
             [
-                ChatMessage("system", "You are a NovelForge drafting assistant."),
+                ChatMessage("system", system_prompts[payload.task_profile]),
                 ChatMessage("user", f"{payload.instructions}\n{prompt}"),
             ],
             model=payload.model,

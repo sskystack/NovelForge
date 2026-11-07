@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from novelforge.ai.analysis_proposal_router import router as analysis_proposal_router
+from novelforge.ai.analysis_router import router as analysis_router
 from novelforge.ai.context_router import router as context_router
 from novelforge.ai.generation_router import router as generation_router
 from novelforge.ai.tool_router import router as tool_router
@@ -77,6 +79,8 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
     application.include_router(context_router, prefix="/api/v1")
     application.include_router(tool_router, prefix="/api/v1")
     application.include_router(generation_router, prefix="/api/v1")
+    application.include_router(analysis_router, prefix="/api/v1")
+    application.include_router(analysis_proposal_router, prefix="/api/v1")
     application.include_router(planning_router, prefix="/api/v1")
     return application
 

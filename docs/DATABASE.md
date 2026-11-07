@@ -71,6 +71,8 @@ NF-013 adds `tool_call_audits`, a novel-scoped append-only record of tool name, 
 
 NF-014 adds `generation_sessions`, storing task profile, provider/model metadata, bounded context snapshot, generated preview, expected chapter version, status and failure details. A session is accepted separately from generation so preview never mutates manuscript content.
 
+NF-015 adds `chapter_analyses`, unique per novel and immutable chapter version, and `analysis_proposals`, fingerprinted per version/type to make reprocessing idempotent. Candidates contain evidence and review state; approval and rejection timestamps identify the human decision. Analysis rows never update canon automatically.
+
 NF-011 retrieval always filters `novel_id`, active chunks, ready documents and visibility before ranking. The service combines lexical and vector rankings using reciprocal rank fusion; vector failures do not prevent lexical results.
 
 ### Chapter version

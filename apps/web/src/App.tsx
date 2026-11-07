@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { BookOpen, ChevronRight, LogOut, Plus, RotateCcw, Save } from "lucide-react";
+import { BookOpen, Check, ChevronRight, FileText, LogOut, Plus, RotateCcw, Save, Sparkles, X } from "lucide-react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
@@ -10,6 +10,9 @@ type Novel = { id: string; title: string; premise: string; status: string };
 type Chapter = { id: string; title: string; chapter_number: number | null; current_version: number; status: string; summary: string };
 type Version = { id: string; version_number: number; content_format: "tiptap" | "markdown"; tiptap_json: Record<string, unknown> | null; markdown: string | null; created_at: string };
 type Mode = "rich" | "markdown";
+type Generation = { id: string; status: string; output: { markdown?: string; source_ids?: string[] }; expected_version: number | null };
+type Analysis = { id: string; chapter_version_id: string; summary_candidate: string; candidates: { events: unknown[]; character_states: unknown[]; consistency_warnings: unknown[] }; proposal_ids: string[] };
+type AnalysisProposal = { id: string; proposal_type: string; payload: Record<string, unknown>; evidence: Record<string, unknown>; status: string };
 
 function parseMarkdown(markdown: string): Record<string, unknown> {
   const nodes: Record<string, unknown>[] = [];
@@ -91,6 +94,10 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [error, setError] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [loading, setLoading] = useState(true);
+  const [generation, setGeneration] = useState<Generation | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [analysisProposals, setAnalysisProposals] = useState<AnalysisProposal[]>([]);
+  const [busyAI, setBusyAI] = useState(false);
 
   const loadProject = useCallback(async (selected: Novel) => {
     setNovel(selected); setChapter(null); setVersions([]); setError("");
@@ -167,8 +174,55 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
     catch (requestError) { setError(requestError instanceof Error && requestError.message.includes("CHAPTER_VERSION_CONFLICT") ? "The chapter changed elsewhere. Reload before restoring." : requestError instanceof Error ? requestError.message : "Restore failed"); }
   };
 
+  const generateDraft = async () => {
+    if (!novel || !chapter) return;
+    setBusyAI(true); setError("");
+    try {
+      const result = await api<Generation>(`/novels/${novel.id}/ai/generations`, { method: "POST", headers: csrfHeaders(), body: JSON.stringify({ chapter_id: chapter.id, task_profile: "writing", instructions: "Continue this chapter in the established voice." }) });
+      setGeneration(result.data);
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Generation failed"); }
+    finally { setBusyAI(false); }
+  };
+
+  const acceptDraft = async () => {
+    if (!novel || !chapter || !generation) return;
+    try {
+      await api(`/novels/${novel.id}/ai/generations/${generation.id}/accept`, { method: "POST", headers: csrfHeaders(), body: JSON.stringify({ expected_version: chapter.current_version }) });
+      setGeneration(null); await loadChapterFor(novel, chapter); setNotice("Draft accepted as a new version");
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Could not accept draft"); }
+  };
+
+  const analyzeLatest = async () => {
+    if (!novel || !versions[0]) return;
+    setBusyAI(true);
+    try {
+      const result = await api<Analysis>(`/novels/${novel.id}/ai/analysis/${versions[0].id}`, { method: "POST", headers: csrfHeaders() });
+      setAnalysis(result.data);
+      setAnalysisProposals((await api<AnalysisProposal[]>(`/novels/${novel.id}/ai/analysis-proposals?chapter_version_id=${versions[0].id}`)).data);
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Analysis failed"); }
+    finally { setBusyAI(false); }
+  };
+
+  const decideAnalysisProposal = async (proposal: AnalysisProposal, decision: "approve" | "reject") => {
+    if (!novel) return;
+    try {
+      await api(`/novels/${novel.id}/ai/analysis-proposals/${proposal.id}/${decision}`, { method: "POST", headers: csrfHeaders(), body: JSON.stringify({ reason: "Reviewed in chapter workspace" }) });
+      setAnalysisProposals((items) => items.filter((item) => item.id !== proposal.id));
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Could not review proposal"); }
+  };
+
+  const applySummaryCandidate = async () => {
+    if (!novel || !chapter || !analysis) return;
+    try {
+      const result = await api<Chapter>(`/novels/${novel.id}/chapters/${chapter.id}`, { method: "PATCH", headers: { ...csrfHeaders(), "If-Match": etag }, body: JSON.stringify({ summary: analysis.summary_candidate }) });
+      setChapter(result.data); setEtag(result.response.headers.get("ETag") || `"${result.data.current_version}"`);
+      setVersions((await api<Version[]>(`/novels/${novel.id}/chapters/${chapter.id}/versions`)).data);
+      setNotice("Summary accepted as a new chapter version");
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Could not apply summary"); }
+  };
+
   const versionLabel = useMemo(() => chapter ? `Version ${chapter.current_version}` : "No chapter selected", [chapter]);
-  return <main className="workspace"><header className="topbar"><div className="brand-mark"><BookOpen size={19} /> NovelForge</div><div className="top-actions"><span className="user-label">{user.display_name || user.email}</span><button className="icon-button" title="Sign out" onClick={onLogout}><LogOut size={17} /></button></div></header><div className="workspace-grid"><aside className="sidebar"><div className="sidebar-heading"><span>Projects</span><button className="icon-button" title="New project" onClick={() => document.getElementById("new-project")?.focus()}><Plus size={17} /></button></div><form className="new-project" onSubmit={createNovel}><input id="new-project" aria-label="New project title" placeholder="New project title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></form>{novels.map((item) => <button className={`project-item ${novel?.id === item.id ? "selected" : ""}`} key={item.id} onClick={() => void loadProject(item)}><BookOpen size={16} /><span>{item.title}</span><ChevronRight size={14} /></button>)}</aside><section className="editor-area">{loading ? <div className="empty-state">Loading workspace…</div> : novel ? <><div className="editor-header"><div><p className="eyebrow">{novel.title}</p><h1>{chapter?.title || "No chapters yet"}</h1></div><div className="editor-actions"><span className="save-state">{dirty ? "Unsaved changes" : notice || versionLabel}</span><button className="primary" disabled={!dirty || !chapter} onClick={() => void save()}><Save size={16} /> Save</button></div></div><div className="chapter-tabs">{chapters.map((item) => <button className={chapter?.id === item.id ? "active" : ""} key={item.id} onClick={() => void loadChapter(item)}>{item.chapter_number ? `${item.chapter_number}. ` : ""}{item.title}</button>)}<button className="add-chapter" onClick={() => void createChapter()} title="Add chapter"><Plus size={15} /></button></div>{chapter && <><div className="mode-toggle" role="group" aria-label="Editor mode"><button className={mode === "rich" ? "active" : ""} aria-pressed={mode === "rich"} onClick={() => switchMode("rich")}>Rich text</button><button className={mode === "markdown" ? "active" : ""} aria-pressed={mode === "markdown"} onClick={() => switchMode("markdown")}>Markdown</button></div>{mode === "rich" ? <RichEditor value={richContent} onChange={(value) => { setRichContent(value); setDirty(true); setNotice(""); }} /> : <textarea className="markdown-editor" aria-label="Markdown source" value={markdown} onChange={(event) => { setMarkdown(event.target.value); setDirty(true); setNotice(""); }} spellCheck={false} />}</>}{!chapter && <button className="primary create-first" onClick={() => void createChapter()}><Plus size={16} /> Create chapter</button>}</> : <div className="empty-state"><BookOpen size={24} /><h1>Create your first project</h1><p>Your chapters and story data will stay in one workspace.</p></div>}{error && <p className="error toast" role="alert">{error}</p>}</section><aside className="history-panel"><div className="sidebar-heading"><span>Version history</span><span className="muted">{versions.length}</span></div>{versions.map((version) => <div className="version-row" key={version.id}><div><strong>Version {version.version_number}</strong><small>{version.content_format} · {new Date(version.created_at).toLocaleString()}</small></div><button className="icon-button" title={`Restore version ${version.version_number}`} aria-label={`Restore version ${version.version_number}`} disabled={!chapter || dirty || version.version_number === chapter.current_version} onClick={() => void restore(version)}><RotateCcw size={15} /></button></div>)}</aside></div></main>;
+  return <main className="workspace"><header className="topbar"><div className="brand-mark"><BookOpen size={19} /> NovelForge</div><div className="top-actions"><span className="user-label">{user.display_name || user.email}</span><button className="icon-button" title="Sign out" onClick={onLogout}><LogOut size={17} /></button></div></header><div className="workspace-grid"><aside className="sidebar"><div className="sidebar-heading"><span>Projects</span><button className="icon-button" title="New project" onClick={() => document.getElementById("new-project")?.focus()}><Plus size={17} /></button></div><form className="new-project" onSubmit={createNovel}><input id="new-project" aria-label="New project title" placeholder="New project title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></form>{novels.map((item) => <button className={`project-item ${novel?.id === item.id ? "selected" : ""}`} key={item.id} onClick={() => void loadProject(item)}><BookOpen size={16} /><span>{item.title}</span><ChevronRight size={14} /></button>)}</aside><section className="editor-area">{loading ? <div className="empty-state">Loading workspace…</div> : novel ? <><div className="editor-header"><div><p className="eyebrow">{novel.title}</p><h1>{chapter?.title || "No chapters yet"}</h1></div><div className="editor-actions"><span className="save-state">{dirty ? "Unsaved changes" : notice || versionLabel}</span><button className="primary" disabled={!dirty || !chapter} onClick={() => void save()}><Save size={16} /> Save</button></div></div><div className="chapter-tabs">{chapters.map((item) => <button className={chapter?.id === item.id ? "active" : ""} key={item.id} onClick={() => void loadChapter(item)}>{item.chapter_number ? `${item.chapter_number}. ` : ""}{item.title}</button>)}<button className="add-chapter" onClick={() => void createChapter()} title="Add chapter"><Plus size={15} /></button></div>{chapter && <><div className="mode-toggle" role="group" aria-label="Editor mode"><button className={mode === "rich" ? "active" : ""} aria-pressed={mode === "rich"} onClick={() => switchMode("rich")}>Rich text</button><button className={mode === "markdown" ? "active" : ""} aria-pressed={mode === "markdown"} onClick={() => switchMode("markdown")}>Markdown</button></div><div className="ai-actions"><button className="secondary" disabled={busyAI || dirty} onClick={() => void generateDraft()}><Sparkles size={15} /> Generate preview</button><button className="secondary" disabled={busyAI || dirty || !versions[0]} onClick={() => void analyzeLatest()}><FileText size={15} /> Analyze version</button></div>{mode === "rich" ? <RichEditor value={richContent} onChange={(value) => { setRichContent(value); setDirty(true); setNotice(""); }} /> : <textarea className="markdown-editor" aria-label="Markdown source" value={markdown} onChange={(event) => { setMarkdown(event.target.value); setDirty(true); setNotice(""); }} spellCheck={false} />}</>}{!chapter && <button className="primary create-first" onClick={() => void createChapter()}><Plus size={16} /> Create chapter</button>}{generation?.status === "succeeded" && <section className="review-panel"><div className="review-heading"><h2>Generated draft</h2><span>{generation.output.source_ids?.length || 0} context sources</span></div><pre>{generation.output.markdown}</pre><div className="review-actions"><button className="primary" onClick={() => void acceptDraft()}><Check size={15} /> Accept as new version</button><button className="icon-button" title="Discard preview" onClick={() => setGeneration(null)}><X size={16} /></button></div></section>}{analysis && <section className="review-panel"><div className="review-heading"><h2>Version analysis</h2><span>{analysis.proposal_ids.length} pending proposals</span></div><p className="analysis-summary">{analysis.summary_candidate}</p><div className="review-actions"><button className="secondary" disabled={dirty} onClick={() => void applySummaryCandidate()}><Check size={15} /> Apply summary</button></div>{analysisProposals.map((proposal) => <div className="proposal-row" key={proposal.id}><div><strong>{proposal.proposal_type.replaceAll("_", " ")}</strong><pre>{JSON.stringify(proposal.payload, null, 2)}</pre><small>Evidence · chapter version {String(proposal.evidence.version_number || "")}</small></div><div className="proposal-actions"><button className="icon-button" title="Approve proposal" onClick={() => void decideAnalysisProposal(proposal, "approve")}><Check size={15} /></button><button className="icon-button" title="Reject proposal" onClick={() => void decideAnalysisProposal(proposal, "reject")}><X size={15} /></button></div></div>)}</section>}</> : <div className="empty-state"><BookOpen size={24} /><h1>Create your first project</h1><p>Your chapters and story data will stay in one workspace.</p></div>}{error && <p className="error toast" role="alert">{error}</p>}</section><aside className="history-panel"><div className="sidebar-heading"><span>Version history</span><span className="muted">{versions.length}</span></div>{versions.map((version) => <div className="version-row" key={version.id}><div><strong>Version {version.version_number}</strong><small>{version.content_format} · {new Date(version.created_at).toLocaleString()}</small></div><button className="icon-button" title={`Restore version ${version.version_number}`} aria-label={`Restore version ${version.version_number}`} disabled={!chapter || dirty || version.version_number === chapter.current_version} onClick={() => void restore(version)}><RotateCcw size={15} /></button></div>)}</aside></div></main>;
 }
 
 export function App() {

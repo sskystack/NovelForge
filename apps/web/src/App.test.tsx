@@ -94,4 +94,24 @@ describe("NovelForge workspace", () => {
       body: JSON.stringify({ content_format: "markdown", markdown: "# Draft" }),
     })));
   });
+
+  it("shows a generated draft for review before accepting it", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/auth/me")) return response(user);
+      if (url.endsWith("/novels")) return response([novel]);
+      if (url.endsWith("/chapters?limit=100")) return response({ items: [chapter] });
+      if (url.endsWith("/chapters/chapter-1/versions")) return response([emptyVersion]);
+      if (url.endsWith("/chapters/chapter-1")) return response(chapter, 200, { ETag: '"1"' });
+      if (url.endsWith("/ai/generations") && init?.method === "POST") return response({ id: "generation-1", status: "succeeded", output: { markdown: "Preview only", source_ids: ["source-1"] }, expected_version: 1 }, 202);
+      return response({}, 404);
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Chapter 1" });
+    fireEvent.click(screen.getAllByRole("button", { name: /Generate preview/ }).find((button) => !button.hasAttribute("disabled"))!);
+    expect(await screen.findByRole("heading", { name: "Generated draft" })).toBeTruthy();
+    expect(screen.getByText("Preview only")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Accept as new version/ })).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/novels/novel-1/ai/generations", expect.objectContaining({ method: "POST" }));
+  });
 });
