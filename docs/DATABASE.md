@@ -67,6 +67,8 @@ NF-008 adds `canon_proposals`, scoped to a novel and carrying proposed JSON, rat
 
 NF-010 adds `knowledge_documents` keyed by novel, source type/ID and source revision, with a content hash and chunker version. `knowledge_chunks` stores text, token count, embedding, source revision metadata and active state. A composite `(novel_id, document_id)` foreign key prevents cross-novel chunk ownership. Re-ingestion first creates replacement chunks and only retires the previous active set after embeddings succeed in the same transaction.
 
+NF-013 adds `tool_call_audits`, a novel-scoped append-only record of tool name, generation ID, outcome, duration and bounded input summary. It is separate from canonical data and cannot grant a tool write access by itself.
+
 NF-011 retrieval always filters `novel_id`, active chunks, ready documents and visibility before ranking. The service combines lexical and vector rankings using reciprocal rank fusion; vector failures do not prevent lexical results.
 
 ### Chapter version
