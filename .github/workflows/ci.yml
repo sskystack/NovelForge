@@ -23,7 +23,7 @@ jobs:
       - name: API health smoke test
         run: |
           export DATABASE_URL=sqlite:////tmp/novelforge-ci.db
-          uv run --directory apps/api alembic -c apps/api/alembic.ini upgrade head
+          uv run --directory apps/api alembic upgrade head
           uv run --directory apps/api uvicorn novelforge.main:app --host 127.0.0.1 --port 8000 > /tmp/novelforge-api.log 2>&1 &
           api_pid=$!
           cleanup() {
