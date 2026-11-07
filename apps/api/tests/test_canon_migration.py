@@ -38,6 +38,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "generation_sessions",
             "chapter_analyses",
             "analysis_proposals",
+            "consistency_issues",
         }.issubset(set(inspector.get_table_names()))
 
         command.downgrade(config, "20261107_0001")
@@ -57,6 +58,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "generation_sessions",
             "chapter_analyses",
             "analysis_proposals",
+            "consistency_issues",
         }.intersection(inspector.get_table_names())
 
         command.upgrade(config, "head")
@@ -80,6 +82,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "generation_sessions",
             "chapter_analyses",
             "analysis_proposals",
+            "consistency_issues",
         }.issubset(set(inspector.get_table_names()))
         engine.dispose()
 

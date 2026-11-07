@@ -225,6 +225,8 @@ NF-015 exposes `POST /novels/{novel_id}/ai/analysis/{chapter_version_id}` and `G
 
 NF-016 provides `GET /novels/{novel_id}/export` and binary `POST /novels/import`. Archives contain a schema-versioned manifest with checksums and JSON records for project data. Regenerable embeddings are omitted. Import validates ZIP paths, compressed and expanded size, entry count and checksums, creates a new active project, remaps IDs and never overwrites the source project.
 
+NF-017 provides `POST /novels/{novel_id}/consistency/check`, filtered issue listing, and `POST /novels/{novel_id}/consistency/issues/{issue_id}/resolve`. Checks are deterministic and evidence-backed; they never edit canon. Issue resolution accepts `resolved`, `dismissed`, or `false_positive`.
+
 NF-011 exposes `GET /novels/{novel_id}/knowledge/search?query=...&limit=10`. Results are restricted to the authenticated novel and `ready` documents; approved sources are returned by default and drafts require `include_drafts=true`. Each result includes chunk/document IDs, source type/ID/revision, title, snippet content and an RRF score. Vector ranking is used when embeddings are available; lexical ranking remains the fallback when the embedding provider is unavailable.
 
 NF-012 exposes `GET /novels/{novel_id}/context/compile?chapter_id=...`. The deterministic context packet separates canon facts, story-time state, events, chapter/outline material and retrieved prose. Every section includes a source reference and provenance; `token_budget` bounds the packet and `story_order` controls state/event selection. The compiler reports omissions as warnings and leaves model inference empty until a generation service fills it.

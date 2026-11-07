@@ -15,6 +15,7 @@ from novelforge.canon.models import (
     StoryEvent,
     WorldRule,
 )
+from novelforge.consistency.models import ConsistencyIssue
 from novelforge.identity.models import AuthSession, User
 from novelforge.knowledge.models import KnowledgeChunk, KnowledgeDocument
 from novelforge.planning.models import Chapter, ChapterVersion, OutlineNode
@@ -32,6 +33,7 @@ __all__ = [
     "KnowledgeChunk",
     "KnowledgeDocument",
     "ToolCallAudit",
+    "ConsistencyIssue",
     "GenerationSession",
     "ChapterAnalysis",
     "AnalysisProposal",

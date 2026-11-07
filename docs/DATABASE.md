@@ -75,6 +75,8 @@ NF-015 adds `chapter_analyses`, unique per novel and immutable chapter version, 
 
 NF-016 does not add a table. Export includes relational rows and excludes embeddings; import assigns a new novel and entity IDs, resets imported knowledge indexing to pending/inactive, and preserves the original archive as an immutable source.
 
+NF-017 adds `consistency_issues` with novel scope, deterministic fingerprint, issue type/severity, evidence JSON and human resolution status. Fingerprints make repeated checks idempotent.
+
 NF-011 retrieval always filters `novel_id`, active chunks, ready documents and visibility before ranking. The service combines lexical and vector rankings using reciprocal rank fusion; vector failures do not prevent lexical results.
 
 ### Chapter version

@@ -15,6 +15,7 @@ from novelforge.ai.generation_router import router as generation_router
 from novelforge.ai.tool_router import router as tool_router
 from novelforge.canon.revision_router import router as revision_router
 from novelforge.canon.router import router as canon_router
+from novelforge.consistency.router import router as consistency_router
 from novelforge.database import create_database_engine, make_session_factory
 from novelforge.errors import (
     Problem,
@@ -74,6 +75,7 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(projects_router, prefix="/api/v1")
     application.include_router(canon_router, prefix="/api/v1")
+    application.include_router(consistency_router, prefix="/api/v1")
     application.include_router(revision_router, prefix="/api/v1")
     application.include_router(knowledge_router, prefix="/api/v1")
     application.include_router(context_router, prefix="/api/v1")
