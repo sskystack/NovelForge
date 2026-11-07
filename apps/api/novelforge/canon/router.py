@@ -1,9 +1,19 @@
+from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
-from novelforge.canon.models import Character, Faction, Location, WorldRule
+from novelforge.canon.models import (
+    Character,
+    CharacterState,
+    Faction,
+    Location,
+    Relationship,
+    StoryEvent,
+    WorldRule,
+)
 from novelforge.canon.schemas import (
     CharacterCreate,
     CharacterRead,
@@ -26,11 +36,128 @@ from novelforge.canon.service import (
     list_entities,
     update_entity,
 )
+from novelforge.canon.state_schemas import (
+    CharacterStateAtRead,
+    CharacterStateCreate,
+    CharacterStateRead,
+    RelationshipCreate,
+    RelationshipRead,
+    StoryEventCreate,
+    StoryEventRead,
+)
+from novelforge.canon.state_service import (
+    create_character_state,
+    create_relationship,
+    create_story_event,
+    get_character_state_at,
+    list_character_states,
+    list_character_states_at,
+    list_relationships,
+    list_story_events,
+)
 from novelforge.database import get_db
 from novelforge.identity.dependencies import get_current_user, require_csrf
 from novelforge.identity.models import User
 
 router = APIRouter(prefix="/novels/{novel_id}", tags=["canon"])
+
+
+@router.get("/events", response_model=list[StoryEventRead])
+def get_story_events(
+    novel_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[StoryEvent]:
+    ensure_novel_access(db, user, novel_id)
+    return list_story_events(db, novel_id)
+
+
+@router.post("/events", response_model=StoryEventRead, status_code=status.HTTP_201_CREATED)
+def post_story_event(
+    novel_id: UUID,
+    payload: StoryEventCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
+) -> StoryEvent:
+    ensure_novel_access(db, user, novel_id)
+    return create_story_event(db, novel_id, payload)
+
+
+@router.get("/characters/{entity_id}/states", response_model=list[CharacterStateRead])
+def get_character_states(
+    novel_id: UUID,
+    entity_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[CharacterState]:
+    ensure_novel_access(db, user, novel_id)
+    return list_character_states(db, novel_id, entity_id)
+
+
+@router.post(
+    "/characters/{entity_id}/states",
+    response_model=CharacterStateRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def post_character_state(
+    novel_id: UUID,
+    entity_id: UUID,
+    payload: CharacterStateCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
+) -> CharacterState:
+    ensure_novel_access(db, user, novel_id)
+    return create_character_state(db, novel_id, entity_id, payload)
+
+
+@router.get("/characters/{entity_id}/state-at", response_model=CharacterStateAtRead)
+def get_character_state_at_order(
+    novel_id: UUID,
+    entity_id: UUID,
+    story_order: Annotated[Decimal, Query(ge=0, max_digits=20, decimal_places=6)],
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, UUID | Decimal | CharacterState | None]:
+    ensure_novel_access(db, user, novel_id)
+    state = get_character_state_at(db, novel_id, entity_id, story_order)
+    return {"character_id": entity_id, "story_order": story_order, "state": state}
+
+
+@router.get("/character-states", response_model=list[CharacterStateRead])
+def get_character_states_at_order(
+    novel_id: UUID,
+    story_order: Annotated[Decimal, Query(ge=0, max_digits=20, decimal_places=6)],
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[CharacterState]:
+    ensure_novel_access(db, user, novel_id)
+    return list_character_states_at(db, novel_id, story_order)
+
+
+@router.get("/relationships", response_model=list[RelationshipRead])
+def get_relationships(
+    novel_id: UUID,
+    story_order: Annotated[Decimal | None, Query(ge=0, max_digits=20, decimal_places=6)] = None,
+    include_non_canon: bool = False,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[Relationship]:
+    ensure_novel_access(db, user, novel_id)
+    return list_relationships(db, novel_id, story_order, include_non_canon)
+
+
+@router.post("/relationships", response_model=RelationshipRead, status_code=status.HTTP_201_CREATED)
+def post_relationship(
+    novel_id: UUID,
+    payload: RelationshipCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
+) -> Relationship:
+    ensure_novel_access(db, user, novel_id)
+    return create_relationship(db, novel_id, payload)
 
 
 @router.get("/characters", response_model=list[CharacterRead])

@@ -31,6 +31,8 @@ The executable baseline is in `db/schema.sql`. This document explains the logica
 
 NF-003 introduces SQLAlchemy models and an Alembic migration for `characters`, `locations`, `factions` and `world_rules`. Each row stores `novel_id`, `canon_status`, `created_at` and `updated_at`; `(novel_id, id)` is unique to support composite same-novel foreign keys in later domain tables. PostgreSQL uses JSONB for flexible traits and attributes, while SQLite stores equivalent JSON for desktop and tests. The migration adds novel/name or novel/category lookup indexes. Ordinary canon CRUD filters by novel scope and does not permit direct writes to approved records.
 
+NF-004 adds `story_events`, `character_states` and `relationships`. Character state has a numeric `story_order`, optional exclusive `valid_to_order`, structured state JSON, approval status and optional event source. A composite `(novel_id, character_id)` foreign key prevents states from linking a character in another novel; an event source uses the same novel scope. Relationships have directional character endpoints, type, attributes and optional half-open validity interval. Both endpoints reference `(novel_id, id)`, with a check against self-relations. Time-order indexes support state lookup and event ordering.
+
 ### Plot
 - `outline_nodes`
 - `chapters`
@@ -52,7 +54,7 @@ NF-003 introduces SQLAlchemy models and an Alembic migration for `characters`, `
 ## 3. Important semantics
 
 ### Character vs character state
-`characters` stores stable identity and description. `character_states` stores values that change in story time, such as age, cultivation level, location, injuries, possessions or current goals. State rows have `valid_from_event_id` / `valid_to_event_id` and an optional `story_order`.
+`characters` stores stable identity and description. `character_states` stores values that change in story time, such as age, cultivation level, location, injuries, possessions or current goals. State rows have `story_order`, an optional exclusive `valid_to_order`, and an optional same-novel `source_event_id`. At a requested story order, only approved states whose half-open interval contains that order are eligible; if eligible records overlap, the latest starting state wins.
 
 ### Canon revision
 Any accepted change to canon creates a `canon_revisions` row with entity type, entity ID, revision number, before/after JSON and actor. AI proposals do not create canonical revisions until approved.

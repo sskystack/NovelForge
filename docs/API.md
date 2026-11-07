@@ -66,6 +66,8 @@ NF-003 provides full CRUD for characters, locations, factions and world rules un
 
 Character records contain stable identity fields (`name`, `aliases`, `summary`, `personality`, `background`, `goals`, `constraints`, `attributes`). Locations and factions contain `name`, `description` and `attributes`. World rules contain `title`, `category`, `description` and structured `constraints`.
 
+NF-004 adds `POST|GET /novels/{novel_id}/events`, `POST|GET /novels/{novel_id}/characters/{character_id}/states`, `GET /novels/{novel_id}/characters/{character_id}/state-at?story_order=N`, `GET /novels/{novel_id}/character-states?story_order=N`, and `POST|GET /novels/{novel_id}/relationships`. Character-state and relationship intervals are half-open: `valid_from_order` / `story_order` is included and `valid_to_order` is excluded. A state-at query returns the latest approved state applicable at that story order; it returns `state: null` when no approved state applies. Relationship reads show approved records by default, with `include_non_canon=true` available for review. Event references and both relationship endpoints must belong to the path novel.
+
 ### Planning and chapters
 - `GET|POST /novels/{novel_id}/outlines`
 - `PATCH|DELETE /novels/{novel_id}/outlines/{node_id}`

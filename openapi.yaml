@@ -450,6 +450,131 @@ paths:
         "204": { description: World rule deleted }
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/events:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: List story events ordered by story time
+      responses:
+        "200":
+          description: Story events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoryEvent" }
+    post:
+      summary: Create a story event draft
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoryEventCreate" }
+      responses:
+        "201":
+          description: Story event created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoryEvent" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/characters/{entity_id}/states:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - $ref: "#/components/parameters/EntityId"
+    get:
+      summary: List character state history
+      responses:
+        "200":
+          description: State snapshots ordered by story order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CharacterState" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      summary: Add a proposed character state snapshot
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CharacterStateCreate" }
+      responses:
+        "201":
+          description: State snapshot created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CharacterState" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/characters/{entity_id}/state-at:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - $ref: "#/components/parameters/EntityId"
+    get:
+      summary: Get the approved character state applicable at a story order
+      parameters:
+        - $ref: "#/components/parameters/StoryOrder"
+      responses:
+        "200":
+          description: Applicable state or null when none is approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CharacterStateAt" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/character-states:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: Get each character's approved state at a story order
+      parameters:
+        - $ref: "#/components/parameters/StoryOrder"
+      responses:
+        "200":
+          description: Applicable states ordered by character ID
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CharacterState" }
+  /novels/{novel_id}/relationships:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: List character relationships
+      parameters:
+        - $ref: "#/components/parameters/StoryOrderOptional"
+        - $ref: "#/components/parameters/IncludeNonCanon"
+      responses:
+        "200":
+          description: Relationships applicable at the optional story order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Relationship" }
+    post:
+      summary: Create a typed relationship draft
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RelationshipCreate" }
+      responses:
+        "201":
+          description: Relationship created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Relationship" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
   /novels/{novel_id}/knowledge/search:
     parameters:
       - $ref: "#/components/parameters/NovelId"
@@ -542,6 +667,16 @@ components:
       required: false
       description: Include draft, proposed and deprecated records.
       schema: { type: boolean, default: false }
+    StoryOrder:
+      name: story_order
+      in: query
+      required: true
+      schema: { type: number, minimum: 0, multipleOf: 0.000001 }
+    StoryOrderOptional:
+      name: story_order
+      in: query
+      required: false
+      schema: { type: number, minimum: 0, multipleOf: 0.000001 }
     CsrfToken:
       name: X-CSRF-Token
       in: header
@@ -737,6 +872,79 @@ components:
         canon_status: { type: string, enum: [draft, proposed, canon, deprecated] }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+    StoryEventCreate:
+      type: object
+      required: [title, story_order]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 50000 }
+        story_order: { type: number, minimum: 0, multipleOf: 0.000001 }
+        story_time_label: { type: [string, "null"], maxLength: 120 }
+        occurred_at: { type: [string, "null"], format: date-time }
+        event_type: { type: string, minLength: 1, maxLength: 80, default: general }
+        canon_status: { type: string, enum: [draft, proposed, deprecated], default: draft }
+    StoryEvent:
+      allOf:
+        - $ref: "#/components/schemas/StoryEventCreate"
+        - type: object
+          required: [id, novel_id, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            novel_id: { type: string, format: uuid }
+            source_chapter_id: { type: [string, "null"], format: uuid }
+            occurred_at: { type: [string, "null"], format: date-time }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    CharacterStateCreate:
+      type: object
+      required: [story_order, state]
+      properties:
+        story_order: { type: number, minimum: 0, multipleOf: 0.000001 }
+        valid_to_order: { type: [number, "null"], minimum: 0, multipleOf: 0.000001 }
+        state: { type: object, additionalProperties: true }
+        source_event_id: { type: [string, "null"], format: uuid }
+        canon_status: { type: string, enum: [draft, proposed, deprecated], default: proposed }
+    CharacterState:
+      allOf:
+        - $ref: "#/components/schemas/CharacterStateCreate"
+        - type: object
+          required: [id, novel_id, character_id, created_at]
+          properties:
+            id: { type: string, format: uuid }
+            novel_id: { type: string, format: uuid }
+            character_id: { type: string, format: uuid }
+            canon_status: { type: string, enum: [draft, proposed, canon, deprecated] }
+            created_at: { type: string, format: date-time }
+    CharacterStateAt:
+      type: object
+      required: [character_id, story_order, state]
+      properties:
+        character_id: { type: string, format: uuid }
+        story_order: { type: number, minimum: 0, multipleOf: 0.000001 }
+        state: { oneOf: [{ $ref: "#/components/schemas/CharacterState" }, { type: "null" }] }
+    RelationshipCreate:
+      type: object
+      required: [from_character_id, to_character_id, relationship_type]
+      properties:
+        from_character_id: { type: string, format: uuid }
+        to_character_id: { type: string, format: uuid }
+        relationship_type: { type: string, minLength: 1, maxLength: 80 }
+        description: { type: string, maxLength: 50000 }
+        valid_from_order: { type: [number, "null"], minimum: 0, multipleOf: 0.000001 }
+        valid_to_order: { type: [number, "null"], minimum: 0, multipleOf: 0.000001 }
+        canon_status: { type: string, enum: [draft, proposed, deprecated], default: draft }
+        attributes: { type: object, additionalProperties: true }
+    Relationship:
+      allOf:
+        - $ref: "#/components/schemas/RelationshipCreate"
+        - type: object
+          required: [id, novel_id, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            novel_id: { type: string, format: uuid }
+            canon_status: { type: string, enum: [draft, proposed, canon, deprecated] }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
     GenerationCreate:
       type: object
       required: [task, instructions]

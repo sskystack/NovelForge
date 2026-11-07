@@ -19,19 +19,33 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
         command.upgrade(config, "head")
         engine = create_engine(f"sqlite:///{database_path}")
         inspector = inspect(engine)
-        assert {"characters", "locations", "factions", "world_rules"}.issubset(
-            set(inspector.get_table_names())
-        )
+        assert {
+            "characters",
+            "locations",
+            "factions",
+            "world_rules",
+            "story_events",
+            "character_states",
+            "relationships",
+        }.issubset(set(inspector.get_table_names()))
 
         command.downgrade(config, "20261107_0001")
         inspector = inspect(engine)
-        assert not {"characters", "locations", "factions", "world_rules"}.intersection(
-            inspector.get_table_names()
-        )
+        assert not {
+            "story_events",
+            "character_states",
+            "relationships",
+        }.intersection(inspector.get_table_names())
 
         command.upgrade(config, "head")
         inspector = inspect(engine)
-        assert {"characters", "locations", "factions", "world_rules"}.issubset(
-            set(inspector.get_table_names())
-        )
+        assert {
+            "characters",
+            "locations",
+            "factions",
+            "world_rules",
+            "story_events",
+            "character_states",
+            "relationships",
+        }.issubset(set(inspector.get_table_names()))
         engine.dispose()
