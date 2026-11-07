@@ -41,6 +41,9 @@ def get_current_user(
 
 
 def require_csrf(request: Request, settings: Settings = Depends(get_settings)) -> None:
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        return
     session_token = request.cookies.get(settings.session_cookie_name)
     if not session_token:
         return
