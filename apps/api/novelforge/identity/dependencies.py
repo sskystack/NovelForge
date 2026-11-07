@@ -20,7 +20,9 @@ def get_current_user(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> User:
-    token = request.cookies.get(settings.session_cookie_name)
+    authorization = request.headers.get("authorization", "")
+    bearer_token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    token = bearer_token or request.cookies.get(settings.session_cookie_name)
     if not token:
         raise Problem(401, "AUTHENTICATION_REQUIRED", "Authentication required", "Please log in.")
 

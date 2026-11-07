@@ -6,6 +6,7 @@ const user = { id: "user-1", email: "writer@example.com", display_name: "Writer"
 const novel = { id: "novel-1", title: "Star Sea", premise: "", status: "active" };
 const chapter = { id: "chapter-1", title: "Chapter 1", chapter_number: 1, current_version: 1, status: "planned", summary: "" };
 const emptyVersion = { id: "version-1", version_number: 1, content_format: "tiptap", tiptap_json: { type: "doc", content: [] }, markdown: null, created_at: "2026-11-07T00:00:00Z" };
+const apiBase = "http://127.0.0.1:8765";
 
 function response(data: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(data === null ? null : JSON.stringify(data), { status, headers: { "Content-Type": "application/json", ...headers } });
@@ -28,7 +29,7 @@ describe("NovelForge workspace", () => {
 
     expect(await screen.findByRole("heading", { name: "Chapter 1" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Chapter 1" })).toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/novels/novel-1/chapters?limit=100", expect.objectContaining({ credentials: "include" }));
+    expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/novels/novel-1/chapters?limit=100`, expect.objectContaining({ credentials: "include" }));
   });
 
   it("signs in with CSRF cookies and submits credentials", async () => {
@@ -46,7 +47,7 @@ describe("NovelForge workspace", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct horse battery staple" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/auth/login", expect.objectContaining({
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/auth/login`, expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({ "X-CSRF-Token": "csrf-value" }),
     })));
@@ -67,7 +68,7 @@ describe("NovelForge workspace", () => {
     const input = screen.getAllByLabelText("New project title")[0];
     fireEvent.change(input, { target: { value: "Star Sea" } });
     fireEvent.submit(input.closest("form")!);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/novels", expect.objectContaining({ method: "POST" })));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/novels`, expect.objectContaining({ method: "POST" })));
     expect(await screen.findByRole("heading", { name: "No chapters yet" })).toBeTruthy();
   });
 
@@ -88,7 +89,7 @@ describe("NovelForge workspace", () => {
     const source = screen.getByLabelText("Markdown source");
     fireEvent.change(source, { target: { value: "# Draft" } });
     fireEvent.click(screen.getAllByRole("button", { name: /Save/ }).find((button) => !button.hasAttribute("disabled"))!);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/novels/novel-1/chapters/chapter-1", expect.objectContaining({
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/novels/novel-1/chapters/chapter-1`, expect.objectContaining({
       method: "PATCH",
       headers: expect.objectContaining({ "If-Match": '"1"' }),
       body: JSON.stringify({ content_format: "markdown", markdown: "# Draft" }),
@@ -112,6 +113,6 @@ describe("NovelForge workspace", () => {
     expect(await screen.findByRole("heading", { name: "Generated draft" })).toBeTruthy();
     expect(screen.getByText("Preview only")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Accept as new version/ })).toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/novels/novel-1/ai/generations", expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/novels/novel-1/ai/generations`, expect.objectContaining({ method: "POST" }));
   });
 });

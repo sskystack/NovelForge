@@ -114,6 +114,8 @@ def login(
         db.commit()
     session_token, csrf_token, _session = create_session(db, user, settings.session_ttl_hours)
     set_session_cookies(response, settings, session_token, csrf_token)
+    if request.headers.get("origin") == "tauri://localhost":
+        response.headers["X-NovelForge-Session"] = session_token
     response.headers["Cache-Control"] = "no-store"
     return user
 

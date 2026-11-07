@@ -54,7 +54,8 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
         allow_origins=app_settings.allowed_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "X-CSRF-Token", "X-Request-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Request-ID"],
+        expose_headers=["ETag", "X-NovelForge-Session"],
     )
     application.add_exception_handler(Problem, problem_handler)
     application.add_exception_handler(RequestValidationError, validation_error_handler)

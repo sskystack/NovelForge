@@ -3,8 +3,8 @@ import os
 import uvicorn
 
 from novelforge.database import Base, create_database_engine
-from novelforge.projects import models_registry  # noqa: F401
 from novelforge.main import app
+from novelforge.projects import models_registry  # noqa: F401
 
 if __name__ == "__main__":
     database_url = os.environ.get("DATABASE_URL", "sqlite:///novelforge.db")

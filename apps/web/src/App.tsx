@@ -16,6 +16,7 @@ type Analysis = { id: string; chapter_version_id: string; summary_candidate: str
 type AnalysisProposal = { id: string; proposal_type: string; payload: Record<string, unknown>; evidence: Record<string, unknown>; status: string };
 // The desktop sidecar listens on loopback; a saved origin can override this for self-hosted/mobile use.
 let apiOrigin = "http://127.0.0.1:8765";
+let desktopSessionToken = "";
 
 function parseMarkdown(markdown: string): Record<string, unknown> {
   const nodes: Record<string, unknown>[] = [];
@@ -45,7 +46,7 @@ function serializeMarkdown(document: Record<string, unknown>): string {
 }
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<{ data: T; response: Response }> {
-  const response = await fetch(`${apiOrigin}/api/v1${path}`, { credentials: "include", ...init, headers: { "Content-Type": "application/json", ...(init.headers || {}) } });
+  const response = await fetch(`${apiOrigin}/api/v1${path}`, { credentials: "include", ...init, headers: { "Content-Type": "application/json", ...(desktopSessionToken ? { Authorization: `Bearer ${desktopSessionToken}` } : {}), ...(init.headers || {}) } });
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) throw new Error(`${data?.code ? `${data.code}: ` : ""}${data?.detail || "Request failed"}`);
@@ -69,6 +70,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
     try {
       if (register) await api<User>("/auth/register", { method: "POST", body: JSON.stringify({ email, password, display_name: displayName }), headers: csrfHeaders() });
       const result = await api<User>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }), headers: csrfHeaders() });
+      if (isTauri()) desktopSessionToken = result.response.headers.get("X-NovelForge-Session") || "";
       onAuthenticated(result.data);
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Unable to sign in"); }
     finally { setBusy(false); }
@@ -242,7 +244,73 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   };
 
   const versionLabel = useMemo(() => chapter ? `Version ${chapter.current_version}` : "No chapter selected", [chapter]);
-  return <main className="workspace"><header className="topbar"><div className="brand-mark"><BookOpen size={19} /> NovelForge</div><div className="top-actions"><span className={`service-indicator ${serviceStatus}`} aria-label={`API ${serviceStatus}`} title={`API ${serviceStatus}`} /><span className="user-label">{user.display_name || user.email}</span><button className="icon-button" title="Sign out" onClick={onLogout}><LogOut size={17} /></button></div></header><div className="workspace-grid"><aside className="sidebar"><div className="sidebar-heading"><span>Projects</span><button className="icon-button" title="New project" onClick={() => document.getElementById("new-project")?.focus()}><Plus size={17} /></button></div><form className="new-project" onSubmit={createNovel}><input id="new-project" aria-label="New project title" placeholder="New project title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></form>{novels.map((item) => <button className={`project-item ${novel?.id === item.id ? "selected" : ""}`} key={item.id} onClick={() => void loadProject(item)}><BookOpen size={16} /><span>{item.title}</span><ChevronRight size={14} /></button>)}</aside><section className="editor-area">{loading ? <div className="empty-state">Loading workspace…</div> : novel ? <><div className="editor-header"><div><p className="eyebrow">{novel.title}</p><h1>{chapter?.title || "No chapters yet"}</h1></div><div className="editor-actions"><span className="save-state">{dirty ? "Unsaved changes" : notice || versionLabel}</span><button className="primary" disabled={!dirty || !chapter} onClick={() => void save()}><Save size={16} /> Save</button></div></div><div className="chapter-tabs">{chapters.map((item) => <button className={chapter?.id === item.id ? "active" : ""} key={item.id} onClick={() => void loadChapter(item)}>{item.chapter_number ? `${item.chapter_number}. ` : ""}{item.title}</button>)}<button className="add-chapter" onClick={() => void createChapter()} title="Add chapter"><Plus size={15} /></button></div>{chapter && <><div className="mode-toggle" role="group" aria-label="Editor mode"><button className={mode === "rich" ? "active" : ""} aria-pressed={mode === "rich"} onClick={() => switchMode("rich")}>Rich text</button><button className={mode === "markdown" ? "active" : ""} aria-pressed={mode === "markdown"} onClick={() => switchMode("markdown")}>Markdown</button></div><div className="ai-actions"><button className="secondary" disabled={busyAI || dirty} onClick={() => void generateDraft()}><Sparkles size={15} /> Generate preview</button><button className="secondary" disabled={busyAI || dirty || !versions[0]} onClick={() => void analyzeLatest()}><FileText size={15} /> Analyze version</button></div>{mode === "rich" ? <RichEditor value={richContent} onChange={(value) => { setRichContent(value); setDirty(true); setNotice(""); }} /> : <textarea className="markdown-editor" aria-label="Markdown source" value={markdown} onChange={(event) => { setMarkdown(event.target.value); setDirty(true); setNotice(""); }} spellCheck={false} />}</>}{!chapter && <button className="primary create-first" onClick={() => void createChapter()}><Plus size={16} /> Create chapter</button>}{generation?.status === "succeeded" && <section className="review-panel"><div className="review-heading"><h2>Generated draft</h2><span>{generation.output.source_ids?.length || 0} context sources</span></div><pre>{generation.output.markdown}</pre><div className="review-actions"><button className="primary" onClick={() => void acceptDraft()}><Check size={15} /> Accept as new version</button><button className="icon-button" title="Discard preview" onClick={() => setGeneration(null)}><X size={16} /></button></div></section>}{analysis && <section className="review-panel"><div className="review-heading"><h2>Version analysis</h2><span>{analysis.proposal_ids.length} pending proposals</span></div><p className="analysis-summary">{analysis.summary_candidate}</p><div className="review-actions"><button className="secondary" disabled={dirty} onClick={() => void applySummaryCandidate()}><Check size={15} /> Apply summary</button></div>{analysisProposals.map((proposal) => <div className="proposal-row" key={proposal.id}><div><strong>{proposal.proposal_type.replaceAll("_", " ")}</strong><pre>{JSON.stringify(proposal.payload, null, 2)}</pre><small>Evidence · chapter version {String(proposal.evidence.version_number || "")}</small></div><div className="proposal-actions"><button className="icon-button" title="Approve proposal" onClick={() => void decideAnalysisProposal(proposal, "approve")}><Check size={15} /></button><button className="icon-button" title="Reject proposal" onClick={() => void decideAnalysisProposal(proposal, "reject")}><X size={15} /></button></div></div>)}</section>}</> : <div className="empty-state"><BookOpen size={24} /><h1>Create your first project</h1><p>Your chapters and story data will stay in one workspace.</p></div>}{error && <p className="error toast" role="alert">{error}</p>}</section><aside className="history-panel"><div className="sidebar-heading"><span>Version history</span><span className="muted">{versions.length}</span></div>{versions.map((version) => <div className="version-row" key={version.id}><div><strong>Version {version.version_number}</strong><small>{version.content_format} · {new Date(version.created_at).toLocaleString()}</small></div><button className="icon-button" title={`Restore version ${version.version_number}`} aria-label={`Restore version ${version.version_number}`} disabled={!chapter || dirty || version.version_number === chapter.current_version} onClick={() => void restore(version)}><RotateCcw size={15} /></button></div>)}</aside></div></main>;
+  return (
+    <main className="workspace">
+      <header className="topbar">
+        <div className="brand-mark"><BookOpen size={19} /> NovelForge</div>
+        <div className="top-actions">
+          <span className={`service-indicator ${serviceStatus}`} aria-label={`API ${serviceStatus}`} title={`API ${serviceStatus}`} />
+          <span className="user-label">{user.display_name || user.email}</span>
+          <button className="icon-button" title="Sign out" onClick={onLogout}><LogOut size={17} /></button>
+        </div>
+      </header>
+      <div className="workspace-grid">
+        <aside className="sidebar">
+          <div className="sidebar-heading"><span>Projects</span><button className="icon-button" title="New project" onClick={() => document.getElementById("new-project")?.focus()}><Plus size={17} /></button></div>
+          <form className="new-project" onSubmit={createNovel}>
+            <input id="new-project" aria-label="New project title" placeholder="New project title" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} />
+          </form>
+          {novels.map((item) => <button className={`project-item ${novel?.id === item.id ? "selected" : ""}`} key={item.id} onClick={() => void loadProject(item)}><BookOpen size={16} /><span>{item.title}</span><ChevronRight size={14} /></button>)}
+        </aside>
+        <section className="editor-area">
+          {loading ? <div className="empty-state">Loading workspace…</div> : novel ? <>
+            <div className="editor-header">
+              <div><p className="eyebrow">{novel.title}</p><h1>{chapter?.title || "No chapters yet"}</h1></div>
+              <div className="editor-actions"><span className="save-state">{dirty ? "Unsaved changes" : notice || versionLabel}</span><button className="primary" disabled={!dirty || !chapter} onClick={() => void save()}><Save size={16} /> Save</button></div>
+            </div>
+            <div className="chapter-tabs">
+              {chapters.map((item) => <button className={chapter?.id === item.id ? "active" : ""} key={item.id} onClick={() => void loadChapter(item)}>{item.chapter_number ? `${item.chapter_number}. ` : ""}{item.title}</button>)}
+              <button className="add-chapter" onClick={() => void createChapter()} title="Add chapter"><Plus size={15} /></button>
+            </div>
+            {chapter && <>
+              <div className="mode-toggle" role="group" aria-label="Editor mode">
+                <button className={mode === "rich" ? "active" : ""} aria-pressed={mode === "rich"} onClick={() => switchMode("rich")}>Rich text</button>
+                <button className={mode === "markdown" ? "active" : ""} aria-pressed={mode === "markdown"} onClick={() => switchMode("markdown")}>Markdown</button>
+              </div>
+              <div className="ai-actions">
+                <button className="secondary" disabled={busyAI || dirty} onClick={() => void generateDraft()}><Sparkles size={15} /> Generate preview</button>
+                <button className="secondary" disabled={busyAI || dirty || !versions[0]} onClick={() => void analyzeLatest()}><FileText size={15} /> Analyze version</button>
+              </div>
+              {mode === "rich" ? <RichEditor value={richContent} onChange={(value) => { setRichContent(value); setDirty(true); setNotice(""); }} /> : <textarea className="markdown-editor" aria-label="Markdown source" value={markdown} onChange={(event) => { setMarkdown(event.target.value); setDirty(true); setNotice(""); }} spellCheck={false} />}
+            </>}
+            {!chapter && <button className="primary create-first" onClick={() => void createChapter()}><Plus size={16} /> Create chapter</button>}
+            {generation?.status === "succeeded" && <section className="review-panel">
+              <div className="review-heading"><h2>Generated draft</h2><span>{generation.output.source_ids?.length || 0} context sources</span></div>
+              <pre>{generation.output.markdown}</pre>
+              <div className="review-actions"><button className="primary" onClick={() => void acceptDraft()}><Check size={15} /> Accept as new version</button><button className="icon-button" title="Discard preview" onClick={() => setGeneration(null)}><X size={16} /></button></div>
+            </section>}
+            {analysis && <section className="review-panel">
+              <div className="review-heading"><h2>Version analysis</h2><span>{analysis.proposal_ids.length} pending proposals</span></div>
+              <p className="analysis-summary">{analysis.summary_candidate}</p>
+              <div className="review-actions"><button className="secondary" disabled={dirty} onClick={() => void applySummaryCandidate()}><Check size={15} /> Apply summary</button></div>
+              {analysisProposals.map((proposal) => <div className="proposal-row" key={proposal.id}>
+                <div><strong>{proposal.proposal_type.replaceAll("_", " ")}</strong><pre>{JSON.stringify(proposal.payload, null, 2)}</pre><small>Evidence · chapter version {String(proposal.evidence.version_number || "")}</small></div>
+                <div className="proposal-actions"><button className="icon-button" title="Approve proposal" onClick={() => void decideAnalysisProposal(proposal, "approve")}><Check size={15} /></button><button className="icon-button" title="Reject proposal" onClick={() => void decideAnalysisProposal(proposal, "reject")}><X size={15} /></button></div>
+              </div>)}
+            </section>}
+          </> : <div className="empty-state"><BookOpen size={24} /><h1>Create your first project</h1><p>Your chapters and story data will stay in one workspace.</p></div>}
+          {error && <p className="error toast" role="alert">{error}</p>}
+        </section>
+        <aside className="history-panel">
+          <div className="sidebar-heading"><span>Version history</span><span className="muted">{versions.length}</span></div>
+          {versions.map((version) => <div className="version-row" key={version.id}>
+            <div><strong>Version {version.version_number}</strong><small>{version.content_format} · {new Date(version.created_at).toLocaleString()}</small></div>
+            <button className="icon-button" title={`Restore version ${version.version_number}`} aria-label={`Restore version ${version.version_number}`} disabled={!chapter || dirty || version.version_number === chapter.current_version} onClick={() => void restore(version)}><RotateCcw size={15} /></button>
+          </div>)}
+        </aside>
+      </div>
+    </main>
+  );
 }
 
 export function App() {
@@ -251,5 +319,5 @@ export function App() {
   useEffect(() => { api<User>("/auth/me").then((result) => setUser(result.data)).catch(() => setUser(null)).finally(() => setChecked(true)); }, []);
   if (!checked) return <main className="auth-shell"><p className="muted">Loading NovelForge…</p></main>;
   if (!user) return <AuthScreen onAuthenticated={setUser} />;
-  return <Workspace user={user} onLogout={() => { void api("/auth/logout", { method: "POST", headers: csrfHeaders() }).finally(() => setUser(null)); }} />;
+  return <Workspace user={user} onLogout={() => { void api("/auth/logout", { method: "POST", headers: csrfHeaders() }).finally(() => { desktopSessionToken = ""; setUser(null); }); }} />;
 }
