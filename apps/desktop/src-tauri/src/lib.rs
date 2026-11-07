@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(desktop)]
 use tauri::Manager;
 
 #[cfg(desktop)]
@@ -13,10 +14,10 @@ struct ApiProcess(Mutex<Option<Child>>);
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(|_app| {
             #[cfg(desktop)]
             {
-                let data_dir = app.path().app_data_dir()?;
+                let data_dir = _app.path().app_data_dir()?;
                 std::fs::create_dir_all(&data_dir)?;
                 let api_origin = "http://127.0.0.1:8765";
                 let mut command = Command::new("binaries/novelforge-api");
@@ -33,16 +34,16 @@ pub fn run() {
                     .stdout(Stdio::null())
                     .stderr(Stdio::null());
                 let child = command.spawn()?;
-                app.manage(ApiProcess(Mutex::new(Some(child))));
-                app.manage(api_origin.to_string());
+                _app.manage(ApiProcess(Mutex::new(Some(child))));
+                _app.manage(api_origin.to_string());
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(|_window, _event| {
             #[cfg(desktop)]
             {
-                if let tauri::WindowEvent::Destroyed = event {
-                    if let Some(process) = window.app_handle().try_state::<ApiProcess>() {
+                if let tauri::WindowEvent::Destroyed = _event {
+                    if let Some(process) = _window.app_handle().try_state::<ApiProcess>() {
                         if let Ok(mut child) = process.0.lock() {
                             if let Some(child) = child.as_mut() {
                                 let _ = child.kill();
