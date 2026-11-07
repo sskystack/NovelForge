@@ -81,6 +81,8 @@ NF-004 adds `POST|GET /novels/{novel_id}/events`, `POST|GET /novels/{novel_id}/c
 
 NF-005 persists nested outline nodes and chapter planning metadata. `GET /outlines` returns a recursively nested tree; children use deterministic `sort_order`, title and ID ordering. `POST /outlines/reorder` accepts a parent and the complete sibling ID order, requiring every sibling exactly once. Parent changes reject cycles and cross-novel references. Deleting an outline node deletes its subtree and clears linked chapter outline IDs. Only `chapter` outline nodes can be assigned to chapter rows. Chapter lists accept `limit` (1-100) and an opaque `cursor`; ordering is deterministic by number, story order and ID.
 
+NF-006 creates an empty TipTap version 1 when a chapter is created. `GET /chapters/{chapter_id}` and every successful write return `ETag: "N"`. `PATCH` requires a matching `If-Match` header and appends an immutable version; a stale tag returns `409 CHAPTER_VERSION_CONFLICT`. A content update requires `content_format` and either TipTap `content` JSON or `markdown`; metadata-only patches retain the current content and still append a snapshot. Version history is returned newest first. Restore also requires the current `If-Match`, copies a selected historical body into a new version, and never changes the source version.
+
 ### Knowledge and consistency
 - `POST /novels/{novel_id}/knowledge/ingest`
 - `GET /novels/{novel_id}/knowledge/search`

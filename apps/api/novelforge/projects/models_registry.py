@@ -10,7 +10,7 @@ from novelforge.canon.models import (
     WorldRule,
 )
 from novelforge.identity.models import AuthSession, User
-from novelforge.planning.models import Chapter, OutlineNode
+from novelforge.planning.models import Chapter, ChapterVersion, OutlineNode
 from novelforge.projects.models import Novel
 
 __all__ = [
@@ -18,6 +18,7 @@ __all__ = [
     "Character",
     "CharacterState",
     "Chapter",
+    "ChapterVersion",
     "Faction",
     "Location",
     "Novel",

@@ -35,6 +35,8 @@ NF-004 adds `story_events`, `character_states` and `relationships`. Character st
 
 NF-005 adds `outline_nodes` with a composite self-foreign-key for parent/novel consistency, typed node levels, stable sibling order and optional planned story-time bounds. `chapters` may link only to a chapter-type outline node through a same-novel composite foreign key. Outline deletion clears chapter links before deleting the subtree. Chapter list indexes support number and story-order scans; API pagination orders null values explicitly and uses an opaque cursor.
 
+NF-006 adds immutable `chapter_versions`, unique by novel, chapter and version number. Each row stores exactly one TipTap JSON or Markdown body, derived plain text and word count, actor and creation time. Chapter writes compare and increment `current_version` in the same transaction that inserts the snapshot. Version update/delete is blocked at the ORM boundary; chapter deletion may still cascade through the database.
+
 ### Plot
 - `outline_nodes`
 - `chapters`

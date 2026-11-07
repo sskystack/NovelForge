@@ -29,6 +29,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "relationships",
             "outline_nodes",
             "chapters",
+            "chapter_versions",
         }.issubset(set(inspector.get_table_names()))
 
         command.downgrade(config, "20261107_0001")
@@ -39,6 +40,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "relationships",
             "outline_nodes",
             "chapters",
+            "chapter_versions",
         }.intersection(inspector.get_table_names())
 
         command.upgrade(config, "head")
@@ -53,6 +55,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "relationships",
             "outline_nodes",
             "chapters",
+            "chapter_versions",
         }.issubset(set(inspector.get_table_names()))
         engine.dispose()
 
@@ -70,11 +73,15 @@ def test_planning_migration_down_up_preserves_previous_revision(monkeypatch) -> 
 
         engine = create_engine(f"sqlite:///{database_path}")
         inspector = inspect(engine)
-        assert {"outline_nodes", "chapters"}.issubset(set(inspector.get_table_names()))
+        assert {"outline_nodes", "chapters", "chapter_versions"}.issubset(
+            set(inspector.get_table_names())
+        )
 
         command.downgrade(config, "20261107_0003")
         inspector = inspect(engine)
-        assert not {"outline_nodes", "chapters"}.intersection(inspector.get_table_names())
+        assert not {"outline_nodes", "chapters", "chapter_versions"}.intersection(
+            inspector.get_table_names()
+        )
         assert {
             "characters",
             "locations",
@@ -87,5 +94,7 @@ def test_planning_migration_down_up_preserves_previous_revision(monkeypatch) -> 
 
         command.upgrade(config, "head")
         inspector = inspect(engine)
-        assert {"outline_nodes", "chapters"}.issubset(set(inspector.get_table_names()))
+        assert {"outline_nodes", "chapters", "chapter_versions"}.issubset(
+            set(inspector.get_table_names())
+        )
         engine.dispose()

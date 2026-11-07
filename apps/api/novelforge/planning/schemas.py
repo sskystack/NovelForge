@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-from novelforge.planning.models import ChapterStatus, OutlineNodeType
+from novelforge.planning.models import ChapterStatus, ContentFormat, OutlineNodeType
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 NodeStatus = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
@@ -104,6 +104,9 @@ class ChapterUpdate(BaseModel):
     story_order: Decimal | None = Field(default=None, max_digits=20, decimal_places=6)
     status: ChapterStatus | None = None
     summary: str | None = Field(default=None, max_length=50_000)
+    content_format: ContentFormat | None = None
+    content: dict[str, object] | None = None
+    markdown: str | None = Field(default=None, max_length=2_000_000)
 
     @model_validator(mode="after")
     def validate_patch(self):
@@ -114,8 +117,23 @@ class ChapterUpdate(BaseModel):
                 "outline_node_id",
                 "chapter_number",
                 "story_order",
+                "content",
+                "markdown",
             }:
                 raise ValueError(f"{field} cannot be null.")
+        content_fields = {"content_format", "content", "markdown"} & self.model_fields_set
+        if content_fields:
+            if self.content_format is None:
+                raise ValueError("content_format is required when chapter content is updated.")
+            if self.content_format == ContentFormat.TIPTAP:
+                if self.content is None:
+                    raise ValueError("content is required for tiptap format.")
+                if self.markdown is not None:
+                    raise ValueError("markdown must be omitted for tiptap format.")
+            elif self.markdown is None:
+                raise ValueError("markdown is required for markdown format.")
+            elif self.content is not None:
+                raise ValueError("content must be omitted for markdown format.")
         return self
 
 
@@ -133,6 +151,22 @@ class ChapterRead(BaseModel):
     summary: str
     created_at: datetime
     updated_at: datetime
+
+
+class ChapterVersionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    novel_id: UUID
+    chapter_id: UUID
+    version_number: int
+    content_format: ContentFormat
+    tiptap_json: dict[str, object] | None
+    markdown: str | None
+    plain_text: str
+    word_count: int
+    created_by: UUID | None
+    created_at: datetime
 
 
 class ChapterPage(BaseModel):

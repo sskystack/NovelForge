@@ -1,9 +1,11 @@
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
 
-from novelforge.planning.models import Chapter
+from novelforge.planning.models import Chapter, ChapterVersion
 
 ORIGIN = "http://localhost:5173"
 PASSWORD = "correct horse battery staple"
@@ -220,10 +222,10 @@ def test_chapter_crud_and_pagination_use_deterministic_order(client: TestClient)
 
     updated = client.patch(
         f"/api/v1/novels/{novel_id}/chapters/{second['id']}",
-        headers=headers(client),
+        headers={**headers(client), "If-Match": '"1"'},
         json={"status": "in_progress", "summary": "Entering the mountain."},
     )
-    assert updated.status_code == 200
+    assert updated.status_code == 200, updated.text
     assert updated.json()["status"] == "in_progress"
 
     assert (
@@ -277,3 +279,195 @@ def test_invalid_chapter_cursor_returns_problem_details(client: TestClient) -> N
     assert response.status_code == 400
     assert response.headers["content-type"].startswith("application/problem+json")
     assert response.json()["code"] == "INVALID_CURSOR"
+
+
+def test_chapter_versions_start_with_empty_tiptap_and_save_immutable_history(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    register_and_login(client)
+    novel_id = create_novel(client, "Versioned manuscript")
+    created = create_chapter(client, novel_id, "Chapter one", 1)
+    chapter_id = created["id"]
+    assert created["current_version"] == 1
+
+    history_url = f"/api/v1/novels/{novel_id}/chapters/{chapter_id}/versions"
+    history = client.get(history_url)
+    assert history.status_code == 200
+    version_one = history.json()[0]
+    assert version_one["version_number"] == 1
+    assert version_one["content_format"] == "tiptap"
+    assert version_one["tiptap_json"] == {"type": "doc", "content": []}
+
+    saved = client.patch(
+        f"/api/v1/novels/{novel_id}/chapters/{chapter_id}",
+        headers={**headers(client), "If-Match": '"1"'},
+        json={
+            "content_format": "markdown",
+            "markdown": "# First draft\n\n林渊 found a clue.",
+            "summary": "A clue is found.",
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.headers["etag"] == '"2"'
+    assert saved.json()["current_version"] == 2
+
+    version_two = client.get(history_url).json()[0]
+    assert version_two["version_number"] == 2
+    assert version_two["content_format"] == "markdown"
+    assert version_two["markdown"].startswith("# First draft")
+    assert version_two["word_count"] == 7
+
+    original = db_session.get(ChapterVersion, UUID(version_one["id"]))
+    assert original is not None
+    original_markdown = original.markdown
+    with pytest.raises(InvalidRequestError, match="Chapter versions are immutable"):
+        original.markdown = "mutated"
+        db_session.commit()
+    db_session.rollback()
+    db_session.expire_all()
+    assert db_session.get(ChapterVersion, UUID(version_one["id"])).markdown == original_markdown
+
+
+def test_stale_chapter_writes_conflict_without_creating_versions(client: TestClient) -> None:
+    register_and_login(client)
+    novel_id = create_novel(client, "Concurrent edits")
+    chapter = create_chapter(client, novel_id, "Chapter", 1)
+    url = f"/api/v1/novels/{novel_id}/chapters/{chapter['id']}"
+
+    first = client.patch(
+        url,
+        headers={**headers(client), "If-Match": "1"},
+        json={"content_format": "markdown", "markdown": "accepted"},
+    )
+    assert first.status_code == 200, first.text
+
+    stale = client.patch(
+        url,
+        headers={**headers(client), "If-Match": '"1"'},
+        json={"content_format": "markdown", "markdown": "must not overwrite"},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "CHAPTER_VERSION_CONFLICT"
+    assert client.get(f"{url}/versions").json()[0]["version_number"] == 2
+    assert client.get(f"{url}/versions").json()[0]["markdown"] == "accepted"
+
+
+def test_metadata_only_update_copies_current_content_into_new_snapshot(client: TestClient) -> None:
+    register_and_login(client)
+    novel_id = create_novel(client, "Metadata snapshot")
+    chapter = create_chapter(client, novel_id, "Chapter", 1)
+    url = f"/api/v1/novels/{novel_id}/chapters/{chapter['id']}"
+
+    saved = client.patch(
+        url,
+        headers={**headers(client), "If-Match": '"1"'},
+        json={"content_format": "markdown", "markdown": "Body remains."},
+    )
+    assert saved.status_code == 200
+    metadata = client.patch(
+        url,
+        headers={**headers(client), "If-Match": '"2"'},
+        json={"status": "review", "summary": "Metadata changed."},
+    )
+    assert metadata.status_code == 200
+    assert metadata.headers["etag"] == '"3"'
+
+    versions = client.get(f"{url}/versions").json()
+    assert [item["version_number"] for item in versions] == [3, 2, 1]
+    assert versions[0]["content_format"] == "markdown"
+    assert versions[0]["markdown"] == "Body remains."
+
+
+def test_restoring_version_creates_new_version_and_never_changes_history(
+    client: TestClient,
+) -> None:
+    register_and_login(client)
+    novel_id = create_novel(client, "Restore chapter")
+    chapter = create_chapter(client, novel_id, "Chapter", 1)
+    chapter_url = f"/api/v1/novels/{novel_id}/chapters/{chapter['id']}"
+    history_url = f"{chapter_url}/versions"
+
+    v2 = client.patch(
+        chapter_url,
+        headers={**headers(client), "If-Match": '"1"'},
+        json={"content_format": "markdown", "markdown": "Version two"},
+    )
+    assert v2.status_code == 200, v2.text
+    version_two_id = client.get(history_url).json()[0]["id"]
+    v3 = client.patch(
+        chapter_url,
+        headers={**headers(client), "If-Match": '"2"'},
+        json={"content_format": "markdown", "markdown": "Version three"},
+    )
+    assert v3.status_code == 200
+    version_two_before = client.get(history_url).json()[1]
+
+    restored = client.post(
+        f"{chapter_url}/restore/{version_two_id}",
+        headers={**headers(client), "If-Match": '"3"'},
+    )
+    assert restored.status_code == 200
+    assert restored.headers["etag"] == '"4"'
+    versions = client.get(history_url).json()
+    assert [item["version_number"] for item in versions] == [4, 3, 2, 1]
+    assert versions[0]["markdown"] == "Version two"
+    assert versions[2] == version_two_before
+
+    stale_restore = client.post(
+        f"{chapter_url}/restore/{version_two_id}",
+        headers={**headers(client), "If-Match": '"3"'},
+    )
+    assert stale_restore.status_code == 409
+
+
+def test_chapter_content_requires_valid_format_payload_and_etag(client: TestClient) -> None:
+    register_and_login(client)
+    novel_id = create_novel(client, "ETag validation")
+    chapter = create_chapter(client, novel_id, "Chapter", 1)
+    url = f"/api/v1/novels/{novel_id}/chapters/{chapter['id']}"
+
+    missing_etag = client.patch(
+        url,
+        headers=headers(client),
+        json={"content_format": "markdown", "markdown": "text"},
+    )
+    assert missing_etag.status_code == 422
+
+    invalid_etag = client.patch(
+        url,
+        headers={**headers(client), "If-Match": 'W/"1"'},
+        json={"content_format": "markdown", "markdown": "text"},
+    )
+    assert invalid_etag.status_code == 400
+    assert invalid_etag.json()["code"] == "INVALID_IF_MATCH"
+
+    invalid_content = client.patch(
+        url,
+        headers={**headers(client), "If-Match": '"1"'},
+        json={"content_format": "tiptap", "markdown": "wrong format"},
+    )
+    assert invalid_content.status_code == 422
+
+
+def test_version_restore_and_read_are_confined_to_chapter_and_novel(client: TestClient) -> None:
+    register_and_login(client, "version-owner@example.com")
+    novel_id = create_novel(client, "Version owner")
+    chapter = create_chapter(client, novel_id, "Private chapter", 1)
+    version_id = client.get(f"/api/v1/novels/{novel_id}/chapters/{chapter['id']}/versions").json()[
+        0
+    ]["id"]
+
+    register_and_login(client, "version-reader@example.com")
+    other_novel = create_novel(client, "Other project")
+    assert (
+        client.get(f"/api/v1/novels/{novel_id}/chapters/{chapter['id']}/versions").status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/api/v1/novels/{other_novel}/chapters/{chapter['id']}/restore/{version_id}",
+            headers={**headers(client), "If-Match": '"1"'},
+        ).status_code
+        == 404
+    )

@@ -710,6 +710,8 @@ paths:
       responses:
         "201":
           description: Chapter created
+          headers:
+            ETag: { schema: { type: string } }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Chapter" }
@@ -727,14 +729,17 @@ paths:
       responses:
         "200":
           description: Chapter
+          headers:
+            ETag: { schema: { type: string } }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Chapter" }
         "404": { $ref: "#/components/responses/Problem" }
     patch:
-      summary: Update chapter metadata
+      summary: Append a chapter version using optimistic concurrency
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
       requestBody:
         required: true
         content:
@@ -742,17 +747,64 @@ paths:
             schema: { $ref: "#/components/schemas/ChapterUpdate" }
       responses:
         "200":
-          description: Chapter metadata updated
+          description: Chapter updated and a new immutable version created
+          headers:
+            ETag: { schema: { type: string } }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Chapter" }
         "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
     delete:
       summary: Delete a chapter
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       responses:
         "204": { description: Chapter deleted }
+        "404": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/chapters/{chapter_id}/versions:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - name: chapter_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: List immutable chapter versions
+      responses:
+        "200":
+          description: Versions newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ChapterVersion" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/chapters/{chapter_id}/restore/{version_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - name: chapter_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Restore a historical body as a new chapter version
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Restored chapter with incremented ETag
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chapter" }
+        "409": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
   /novels/{novel_id}/ai/generations:
     parameters:
@@ -819,6 +871,11 @@ components:
       in: header
       required: true
       schema: { type: string }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema: { type: string, pattern: '^"[0-9]+"$' }
   responses:
     Unauthorized:
       description: Authentication required
@@ -1152,6 +1209,9 @@ components:
         story_order: { type: [number, "null"], multipleOf: 0.000001 }
         status: { type: string, enum: [planned, draft, in_progress, review, completed] }
         summary: { type: string, maxLength: 50000 }
+        content_format: { type: string, enum: [tiptap, markdown] }
+        content: { type: object, additionalProperties: true }
+        markdown: { type: string, maxLength: 2000000 }
     Chapter:
       allOf:
         - type: object
@@ -1171,6 +1231,21 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Chapter" }
         next_cursor: { type: [string, "null"] }
+    ChapterVersion:
+      type: object
+      required: [id, novel_id, chapter_id, version_number, content_format, plain_text, word_count, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        novel_id: { type: string, format: uuid }
+        chapter_id: { type: string, format: uuid }
+        version_number: { type: integer, minimum: 1 }
+        content_format: { type: string, enum: [tiptap, markdown] }
+        tiptap_json: { type: [object, "null"], additionalProperties: true }
+        markdown: { type: [string, "null"] }
+        plain_text: { type: string }
+        word_count: { type: integer, minimum: 0 }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
     GenerationCreate:
       type: object
       required: [task, instructions]

@@ -1,21 +1,30 @@
 import base64
 import binascii
 import json
+import re
 from collections import defaultdict
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from novelforge.canon.models import Character, Faction, Location, StoryEvent, WorldRule
 from novelforge.database import utc_now
 from novelforge.errors import Problem
 from novelforge.identity.models import User
-from novelforge.planning.models import Chapter, OutlineNode, OutlineNodeType
+from novelforge.planning.models import (
+    Chapter,
+    ChapterVersion,
+    ContentFormat,
+    OutlineNode,
+    OutlineNodeType,
+)
 from novelforge.planning.schemas import (
     ChapterCreate,
     ChapterPage,
     ChapterUpdate,
+    ChapterVersionRead,
     OutlineNodeCreate,
     OutlineNodeRead,
     OutlineNodeUpdate,
@@ -277,8 +286,19 @@ def create_chapter(
 ) -> Chapter:
     get_novel(db, owner, novel_id)
     _validate_chapter_outline(db, novel_id, payload.outline_node_id)
-    chapter = Chapter(novel_id=novel_id, **payload.model_dump())
+    chapter = Chapter(novel_id=novel_id, current_version=1, **payload.model_dump())
     db.add(chapter)
+    db.flush()
+    db.add(
+        _make_version(
+            chapter,
+            version_number=1,
+            content_format=ContentFormat.TIPTAP,
+            content={"type": "doc", "content": []},
+            markdown=None,
+            created_by=owner.id,
+        )
+    )
     db.commit()
     db.refresh(chapter)
     return chapter
@@ -286,15 +306,214 @@ def create_chapter(
 
 def update_chapter(
     db: Session,
+    owner: User,
     chapter: Chapter,
     payload: ChapterUpdate,
+    expected_version: int,
 ) -> Chapter:
+    if chapter.current_version != expected_version:
+        raise _version_conflict(chapter.current_version)
     values = payload.model_dump(exclude_unset=True)
     if "outline_node_id" in values:
         _validate_chapter_outline(db, chapter.novel_id, values["outline_node_id"])
-    for field, value in values.items():
-        setattr(chapter, field, value)
-    db.commit()
+    current = get_current_chapter_version(db, chapter)
+    content_format = values.pop("content_format", current.content_format)
+    content = values.pop("content", current.tiptap_json)
+    markdown = values.pop("markdown", current.markdown)
+    if content_format == ContentFormat.TIPTAP:
+        markdown = None
+    else:
+        content = None
+    next_version = expected_version + 1
+    statement = (
+        update(Chapter)
+        .where(
+            Chapter.novel_id == chapter.novel_id,
+            Chapter.id == chapter.id,
+            Chapter.current_version == expected_version,
+        )
+        .values(**values, current_version=next_version, updated_at=utc_now())
+        .execution_options(synchronize_session=False)
+    )
+    result = db.execute(statement)
+    if result.rowcount != 1:
+        db.rollback()
+        latest = get_chapter(db, owner, chapter.novel_id, chapter.id)
+        raise _version_conflict(latest.current_version)
+    db.add(
+        _make_version(
+            chapter,
+            version_number=next_version,
+            content_format=content_format,
+            content=content,
+            markdown=markdown,
+            created_by=owner.id,
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise Problem(
+            500,
+            "CHAPTER_VERSION_WRITE_FAILED",
+            "Chapter version write failed",
+            "The chapter version could not be saved.",
+        ) from error
+    db.refresh(chapter)
+    return chapter
+
+
+def _version_conflict(current_version: int) -> Problem:
+    return Problem(
+        409,
+        "CHAPTER_VERSION_CONFLICT",
+        "Version conflict",
+        f"The chapter has changed since it was loaded. Current version: {current_version}.",
+    )
+
+
+def _plain_text(content_format: ContentFormat, content: dict | None, markdown: str | None) -> str:
+    if content_format == ContentFormat.MARKDOWN:
+        return markdown or ""
+    text_nodes: list[str] = []
+
+    def visit(value) -> None:
+        if isinstance(value, dict):
+            if isinstance(value.get("text"), str):
+                text_nodes.append(value["text"])
+            for child in value.values():
+                if isinstance(child, (dict, list)):
+                    visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(content or {})
+    return "\n".join(text_nodes)
+
+
+def _make_version(
+    chapter: Chapter,
+    version_number: int,
+    content_format: ContentFormat,
+    content: dict | None,
+    markdown: str | None,
+    created_by: UUID | None,
+) -> ChapterVersion:
+    plain_text = _plain_text(content_format, content, markdown)
+    tokens = re.findall(r"[\u4e00-\u9fff]|[A-Za-z0-9]+", plain_text)
+    return ChapterVersion(
+        id=uuid4(),
+        novel_id=chapter.novel_id,
+        chapter_id=chapter.id,
+        version_number=version_number,
+        content_format=content_format,
+        tiptap_json=content if content_format == ContentFormat.TIPTAP else None,
+        markdown=markdown if content_format == ContentFormat.MARKDOWN else None,
+        plain_text=plain_text,
+        word_count=len(tokens),
+        created_by=created_by,
+    )
+
+
+def get_current_chapter_version(db: Session, chapter: Chapter) -> ChapterVersion:
+    version = db.scalar(
+        select(ChapterVersion).where(
+            ChapterVersion.novel_id == chapter.novel_id,
+            ChapterVersion.chapter_id == chapter.id,
+            ChapterVersion.version_number == chapter.current_version,
+        )
+    )
+    if version is None:
+        return ChapterVersion(
+            id=uuid4(),
+            novel_id=chapter.novel_id,
+            chapter_id=chapter.id,
+            version_number=chapter.current_version,
+            content_format=ContentFormat.TIPTAP,
+            tiptap_json={"type": "doc", "content": []},
+            markdown=None,
+            plain_text="",
+            word_count=0,
+        )
+    return version
+
+
+def list_chapter_versions(
+    db: Session,
+    owner: User,
+    novel_id: UUID,
+    chapter_id: UUID,
+) -> list[ChapterVersionRead]:
+    chapter = get_chapter(db, owner, novel_id, chapter_id)
+    versions = list(
+        db.scalars(
+            select(ChapterVersion)
+            .where(ChapterVersion.novel_id == novel_id, ChapterVersion.chapter_id == chapter.id)
+            .order_by(ChapterVersion.version_number.desc())
+        ).all()
+    )
+    return [ChapterVersionRead.model_validate(version) for version in versions]
+
+
+def restore_chapter_version(
+    db: Session,
+    owner: User,
+    chapter: Chapter,
+    version_id: UUID,
+    expected_version: int,
+) -> Chapter:
+    source = db.scalar(
+        select(ChapterVersion).where(
+            ChapterVersion.novel_id == chapter.novel_id,
+            ChapterVersion.chapter_id == chapter.id,
+            ChapterVersion.id == version_id,
+        )
+    )
+    if source is None:
+        raise _not_found(
+            "CHAPTER_VERSION_NOT_FOUND", "Chapter version not found", "The version was not found."
+        )
+    if chapter.current_version != expected_version:
+        raise _version_conflict(chapter.current_version)
+    next_version = expected_version + 1
+    result = db.execute(
+        update(Chapter)
+        .where(
+            Chapter.novel_id == chapter.novel_id,
+            Chapter.id == chapter.id,
+            Chapter.current_version == expected_version,
+        )
+        .values(current_version=next_version, updated_at=utc_now())
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:
+        db.rollback()
+        latest = get_chapter(db, owner, chapter.novel_id, chapter.id)
+        raise _version_conflict(latest.current_version)
+    db.add(
+        _make_version(
+            chapter,
+            version_number=next_version,
+            content_format=source.content_format,
+            content=source.tiptap_json,
+            markdown=source.markdown,
+            created_by=owner.id,
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise Problem(
+            500,
+            "CHAPTER_VERSION_WRITE_FAILED",
+            "Chapter version write failed",
+            "The chapter version could not be restored.",
+        ) from error
+    db.refresh(chapter)
+    return chapter
     db.refresh(chapter)
     return chapter
 

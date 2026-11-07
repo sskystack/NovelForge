@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -14,16 +15,18 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    event,
     func,
     text,
 )
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Mapped, mapped_column
 
 from novelforge.database import Base, UTCDateTime
 
-json_type = JSON().with_variant(JSONB, "postgresql")
+json_type = JSON(none_as_null=True).with_variant(JSONB(none_as_null=True), "postgresql")
 
 
 class OutlineNodeType(StrEnum):
@@ -43,6 +46,11 @@ class ChapterStatus(StrEnum):
     COMPLETED = "completed"
 
 
+class ContentFormat(StrEnum):
+    TIPTAP = "tiptap"
+    MARKDOWN = "markdown"
+
+
 outline_node_type = SqlEnum(
     OutlineNodeType,
     name="outline_node_type",
@@ -53,6 +61,13 @@ outline_node_type = SqlEnum(
 chapter_status_type = SqlEnum(
     ChapterStatus,
     name="chapter_status",
+    native_enum=False,
+    create_constraint=True,
+    values_callable=lambda values: [value.value for value in values],
+)
+content_format_type = SqlEnum(
+    ContentFormat,
+    name="content_format",
     native_enum=False,
     create_constraint=True,
     values_callable=lambda values: [value.value for value in values],
@@ -130,3 +145,51 @@ class Chapter(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), nullable=False, server_default=func.now(), onupdate=func.now()
     )
+
+
+class ChapterVersion(Base):
+    __tablename__ = "chapter_versions"
+    __table_args__ = (
+        UniqueConstraint("novel_id", "id", name="uq_chapter_versions_novel_id"),
+        UniqueConstraint(
+            "novel_id", "chapter_id", "version_number", name="uq_chapter_version_number"
+        ),
+        ForeignKeyConstraint(
+            ["novel_id", "chapter_id"],
+            ["chapters.novel_id", "chapters.id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
+        CheckConstraint(
+            "(content_format = 'tiptap' AND tiptap_json IS NOT NULL AND markdown IS NULL) "
+            "OR (content_format = 'markdown' AND markdown IS NOT NULL AND tiptap_json IS NULL)",
+            name="ck_chapter_version_content_format",
+        ),
+        Index("ix_chapter_versions_history", "novel_id", "chapter_id", "version_number"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    novel_id: Mapped[UUID] = mapped_column(
+        ForeignKey("novels.id", ondelete="CASCADE"), nullable=False
+    )
+    chapter_id: Mapped[UUID] = mapped_column(nullable=False)
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_format: Mapped[ContentFormat] = mapped_column(content_format_type, nullable=False)
+    tiptap_json: Mapped[dict[str, object] | None] = mapped_column(json_type, nullable=True)
+    markdown: Mapped[str | None] = mapped_column(String, nullable=True)
+    plain_text: Mapped[str] = mapped_column(String, nullable=False, default="", server_default="")
+    word_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, server_default=func.now()
+    )
+
+
+@event.listens_for(ChapterVersion, "before_update")
+def prevent_chapter_version_update(_mapper, _connection, _version) -> None:
+    raise InvalidRequestError("Chapter versions are immutable.")
+
+
+@event.listens_for(ChapterVersion, "before_delete")
+def prevent_chapter_version_delete(_mapper, _connection, _version) -> None:
+    raise InvalidRequestError("Chapter versions are immutable.")
