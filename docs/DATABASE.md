@@ -73,6 +73,8 @@ NF-014 adds `generation_sessions`, storing task profile, provider/model metadata
 
 NF-015 adds `chapter_analyses`, unique per novel and immutable chapter version, and `analysis_proposals`, fingerprinted per version/type to make reprocessing idempotent. Candidates contain evidence and review state; approval and rejection timestamps identify the human decision. Analysis rows never update canon automatically.
 
+NF-016 does not add a table. Export includes relational rows and excludes embeddings; import assigns a new novel and entity IDs, resets imported knowledge indexing to pending/inactive, and preserves the original archive as an immutable source.
+
 NF-011 retrieval always filters `novel_id`, active chunks, ready documents and visibility before ranking. The service combines lexical and vector rankings using reciprocal rank fusion; vector failures do not prevent lexical results.
 
 ### Chapter version
