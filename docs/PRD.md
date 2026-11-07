@@ -1,8 +1,10 @@
 # NovelForge — Product Requirements Document
 
-**Version:** 1.0  
-**Status:** Baseline for MVP  
-**Product type:** Open-source, AI-assisted long-form fiction workspace  
+> **Current release direction (2026-11-07): Desktop-Local First.** This direction supersedes server/SaaS/Android-first implications in the baseline below. Windows and macOS local desktop are the first targets. SQLite is the planned production local database. SaaS, remote self-hosting, Android and multi-device sync are deferred. Existing implemented functionality remains subject to the audit in [ROADMAP.md](ROADMAP.md); this notice does not claim desktop packaging or a supported SQLite runtime already exists.
+
+**Version:** 1.0
+**Status:** Baseline for MVP
+**Product type:** Open-source, AI-assisted long-form fiction desktop workspace
 **License target:** Apache-2.0
 
 ## 1. Product vision
@@ -41,7 +43,7 @@ NovelForge helps authors plan, write, maintain and revise long-form fiction with
 - AI output is a draft until accepted.
 - No destructive tool action without explicit authorization.
 - Provider adapters isolate vendor-specific APIs.
-- Self-hosted and SaaS deployments share the same domain model.
+- Local desktop is the first delivery profile. Server/SaaS profiles may reuse the domain model if resumed later.
 
 ## 5. Primary user journeys
 
@@ -147,7 +149,7 @@ Priority: P0 = MVP blocker, P1 = post-MVP, P2 = later.
 ### RAG and context
 - P0: Ingestion of canon records, chapters, summaries and uploaded text/Markdown.
 - P0: Chunk metadata includes novel_id, source type, source ID, revision and story-time range.
-- P0: PostgreSQL full-text + pgvector hybrid retrieval.
+- P0: SQLite FTS5 lexical search plus an adapter-based vector retrieval path for local desktop. Packaged vector options require NF-021 benchmarks.
 - P0: Hard novel and user access filters before ranking.
 - P0: Canon facts outrank AI inferences and unapproved drafts.
 - P0: Context budget and source citation output.
@@ -162,12 +164,11 @@ Priority: P0 = MVP blocker, P1 = post-MVP, P2 = later.
 - P1: Continuity dashboard.
 
 ### Deployment and operations
-- P0: Self-hosted deployment using native installation scripts; Docker is not required.
-- P0: Environment-variable based configuration.
-- P0: Health/readiness endpoints.
-- P0: Database migrations and backup/restore documentation.
+- P0: Windows/macOS installable desktop app with bundled Python sidecar; end users do not install Python, Node.js, PostgreSQL or Docker.
+- P0: Local SQLite under per-user application data, versioned migrations and backup/restore.
+- P0: Loopback-only sidecar with health handshake and safe shutdown.
 - P0: Structured logs and request IDs.
-- P1: SaaS tenant quotas, billing and admin console.
+- Deferred: self-hosted server operations, SaaS quotas/billing, remote sync, and Android.
 
 ## 7. Non-functional requirements
 
@@ -192,8 +193,7 @@ Priority: P0 = MVP blocker, P1 = post-MVP, P2 = later.
 - Proposed canon updates and approval.
 - Chapter generation preview and versioning.
 - Export/import.
-- Native self-hosted install/run scripts (no Docker dependency).
-- Windows `.exe`, macOS `.dmg`, Android `.apk` release artifacts.
+- Windows `.exe` and macOS `.dmg` desktop release artifacts.
 - Unit, integration and end-to-end tests.
 
 ### Release blockers

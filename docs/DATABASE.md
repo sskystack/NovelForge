@@ -1,17 +1,26 @@
 # NovelForge — Database Design
 
-The executable baseline is in `db/schema.sql`. This document explains the logical model.
+This document separates the current executable model from the Desktop-Local First target. At audited revision `27360af`, SQLAlchemy/Alembic migrations run against SQLite in tests, but the configured default database remains PostgreSQL. `db/schema.sql` is a PostgreSQL-oriented reference schema, not the desktop SQLite schema.
 
 ## 1. Conventions
 
-- PostgreSQL 16+.
+- **Target for current product:** file-backed SQLite in the user's application-data directory.
+- PostgreSQL is a deferred deployment adapter, not a desktop prerequisite.
 - UUID primary keys.
-- UTC timestamps (`timestamptz`).
+- UTC timestamps, normalized by the ORM.
 - Every novel-owned row carries `novel_id`.
 - `created_at` and `updated_at` are server-managed.
 - Soft deletion only where recovery matters; immutable revisions are retained.
-- JSONB is for flexible attributes, not a replacement for relational constraints.
-- Embedding dimensions are configurable at deployment; the initial SQL uses 1536 dimensions as a default and must be aligned with the selected embedding model before migration in production.
+- JSON is for flexible attributes, not a replacement for relational constraints. PostgreSQL may use JSONB behind SQLAlchemy variants.
+- Embeddings are derived data; persist the embedding model/version/dimension needed to reproduce them.
+
+### Current implementation audit
+
+- Automated API tests use SQLite, and the current Alembic chain has been exercised against SQLite.
+- Application settings and `alembic.ini` still default to PostgreSQL; `psycopg` is a required package.
+- No FTS5 virtual table or production local database path exists at the audited revision.
+- Knowledge embeddings are JSON arrays; search currently loads candidate chunks and computes lexical/cosine scores in Python.
+- NF-021 is planned to add a supported local profile and FTS5 indexing. Any persistent schema change needs a reversible migration and a tested backup/upgrade path.
 
 ## 2. Entity groups
 
@@ -67,7 +76,7 @@ NF-008 adds `canon_proposals`, scoped to a novel and carrying proposed JSON, rat
 
 NF-010 adds `knowledge_documents` keyed by novel, source type/ID and source revision, with a content hash and chunker version. `knowledge_chunks` stores text, token count, embedding, source revision metadata and active state. A composite `(novel_id, document_id)` foreign key prevents cross-novel chunk ownership. Re-ingestion first creates replacement chunks and only retires the previous active set after embeddings succeed in the same transaction.
 
-NF-011 retrieval always filters `novel_id`, active chunks, ready documents and visibility before ranking. The service combines lexical and vector rankings using reciprocal rank fusion; vector failures do not prevent lexical results.
+NF-011's current prototype filters `novel_id`, active chunks, ready documents and visibility before ranking. It computes lexical/cosine ranks in Python and combines them with reciprocal rank fusion; it does not use FTS5 or pgvector queries. NF-021 will define and test the local search adapter.
 
 ### Chapter version
 `chapters` is the current logical chapter record. `chapter_versions` stores immutable content snapshots and editor format. Autosave uses `version_number` or an ETag to prevent lost updates.
@@ -82,8 +91,8 @@ A chunk references its source document, source revision and optional chapter ver
 
 - B-tree on all `novel_id` foreign-key lookup paths.
 - GIN on JSONB only for fields with demonstrated query use.
-- GIN full-text index on chunk `search_vector`.
-- HNSW or IVFFlat vector index after data volume justifies it.
+- SQLite FTS5 virtual index for the local profile (planned, not implemented).
+- PostgreSQL GIN/pgvector indexes only if the deferred server profile is resumed.
 - Composite indexes for `(novel_id, status)`, `(novel_id, chapter_id, version_number)`.
 - Add partial indexes for active chunks and open consistency issues.
 

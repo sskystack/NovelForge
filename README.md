@@ -1,78 +1,53 @@
 # NovelForge
 
-NovelForge is an open-source workspace for planning and writing long-form fiction with AI while keeping canonical story facts author-controlled and versioned.
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-## Project status
+NovelForge is an open-source fiction workspace that keeps story canon author-controlled and versioned. The product direction is **Desktop-Local First**: Windows and macOS are the first release targets, with project data stored on the user's device.
 
-The repository is being built issue by issue from the [engineering backlog](docs/GITHUB_ISSUES.md). NF-001 established the modular-monolith skeleton; NF-002 adds identity and owner-scoped novel management; NF-003 adds novel-scoped canon entities; NF-004 adds time-aware character states and relationships; NF-005 adds nested outlines and chapter planning metadata; NF-006 adds immutable chapter versions and optimistic concurrency.
+> **Development status:** the repository has backend and web foundations through NF-012, but it is not yet an installable desktop application. NF-010 to NF-012 have implementation gaps recorded in the [roadmap](docs/ROADMAP.md). There is no Tauri shell, packaged Python sidecar, production SQLite profile, FTS5 index, or installer yet.
 
-## Requirements
+## Current status
 
-- Python 3.12+
-- Node.js 20+ and npm
-- [uv](https://docs.astral.sh/uv/)
-- PostgreSQL 16+ with pgvector for server development (install natively; Docker is not required)
-- GNU Make is optional; the setup scripts also work directly
+- Implemented foundations: identity and novel ownership, canon CRUD and approval history, outlines and chapters, immutable chapter versions, connected web editor, provider interfaces, knowledge ingestion/search prototypes, and a context compiler.
+- Verified locally at the latest audited commit (`27360af`): 57 API tests passed; latest GitHub CI passed. These results do not establish desktop packaging or full NF-010 to NF-012 acceptance.
+- The audit found no GitHub Issues before synchronization; tracking Issues #1–#10 are now open for NF-013–NF-022. Their labels and deferred status are part of the current evidence; see [ROADMAP.md](docs/ROADMAP.md).
+- Supported today: developer-run API and web app. Planned first-class installs: Windows x64 EXE and macOS DMG. Android and remote SaaS/self-hosting are deferred.
 
-PostgreSQL installation: on macOS, `brew install postgresql@16` and `brew install pgvector`; on Ubuntu, install PostgreSQL 16 and the matching `postgresql-16-pgvector` package from the PostgreSQL/PGDG repository; on Windows, use the PostgreSQL 16 installer and install the matching pgvector extension. Start PostgreSQL, create a local `novelforge` database and role, then configure `DATABASE_URL` in `.env`. Database migrations and database-backed functionality are introduced by later issues.
+## Desktop target
 
-## Setup
+The intended desktop stack is React + Vite, Tauri 2, a bundled FastAPI Python sidecar, SQLAlchemy/Alembic, and SQLite in the per-user application data directory. SQLite FTS5 is the planned lexical index. Model API credentials will be configured locally and kept out of browser bundles and logs. The sidecar must bind only to loopback, use local request authorization, start and stop with the desktop app, and preserve user data through upgrades.
 
-1. Copy `.env.example` to `.env` and adjust local database values.
-2. Run the setup script for your operating system:
+This is a target architecture, not a claim about current functionality. Vector retrieval remains behind an adapter. The current prototype stores embeddings as JSON and computes cosine scores in Python; FTS5 and packaged vector options require an explicit design/test issue before implementation.
 
-   ```sh
-   # macOS / Linux
-   ./scripts/setup.sh
-   ```
+## Developer setup today
 
-   ```powershell
-   # Windows PowerShell
-   .\scripts\setup.ps1
-   ```
-
-The scripts validate prerequisites and install locked API and web dependencies. They do not install or configure PostgreSQL for you.
-For local HTTP development, keep `SESSION_COOKIE_SECURE=false`; set it to `true` for deployments served over HTTPS.
-
-## Run and test
+Prerequisites for the current source workflow: Python 3.12+, `uv`, Node.js 20+, npm, and GNU Make (optional). The current API defaults to PostgreSQL; the test suite uses SQLite. This development setup is not the end-user desktop installation path.
 
 ```sh
-make dev-api       # http://127.0.0.1:8000/health
-make dev-web       # http://localhost:5173
-make test          # API and web tests
-make lint          # Ruff and ESLint
-make typecheck     # TypeScript strict checks
+./scripts/setup.sh
+make dev-api       # API health: http://127.0.0.1:8000/health
+make dev-web       # Web UI: http://localhost:5173
+make test
+make lint
+make typecheck
 ```
 
-Commands can also be run without Make:
+Windows PowerShell setup: `./scripts/setup.ps1`. The scripts install development dependencies; they do not create a desktop installer or bundle Python/Node runtimes.
 
-```sh
-uv run --directory apps/api uvicorn novelforge.main:app --reload
-uv run --directory apps/api pytest
-cd apps/web && npm run dev
-cd apps/web && npm test
-```
+## Project documents
 
-After PostgreSQL is running and `.env` is configured, apply database migrations with:
-
-```sh
-uv run --directory apps/api alembic -c alembic.ini upgrade head
-```
-
-## Architecture and contracts
-
-The backend is a modular monolith. PostgreSQL + pgvector is the server baseline; SQLite + FTS5 is reserved for the desktop-local profile and must remain behind database/retrieval adapters. Redis is optional for local development. Novel-scoped access, immutable canon revisions, RAG provenance, and human approval are required by the specifications.
-
+- [Roadmap and audited status](docs/ROADMAP.md)
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Database design](docs/DATABASE.md)
-- [API](docs/API.md) and [OpenAPI contract](openapi.yaml)
-- [Agent, RAG and Context Compiler](docs/AGENT_SPEC.md)
+- [API contract](docs/API.md) and [OpenAPI file](openapi.yaml)
+- [Agent and retrieval specification](docs/AGENT_SPEC.md)
 - [Development guide](docs/DEVELOPMENT.md)
-- [Platform packaging](docs/PLATFORM_PACKAGING.md)
+- [Platform packaging plan](docs/PLATFORM_PACKAGING.md)
 - [Engineering backlog](docs/GITHUB_ISSUES.md)
-- [Initial PostgreSQL schema](db/schema.sql)
+
+Cloud SaaS, self-hosted server release, Android and multi-device sync remain in the backlog as deferred work; they are not current release targets.
 
 ## License
 
-Apache-2.0 (target license; the repository license file will be added with the licensing issue).
+Apache-2.0 is the target license; a repository license file has not yet been added.

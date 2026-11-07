@@ -1,9 +1,9 @@
 # NovelForge — API Specification
 
-Base path: `/api/v1`  
-Format: JSON, UTF-8  
-Authentication: opaque server-side session in an `HttpOnly`, `SameSite=Strict` cookie; bearer token for API clients (future).
-All endpoints are scoped to the authenticated user and novel membership.
+Base path: `/api/v1`
+Format: JSON, UTF-8
+Current development API authentication uses an opaque local session in an `HttpOnly`, `SameSite=Strict` cookie. The first desktop profile is local single-user; it must not depend on remote authentication. Bearer-token/server authentication remains deferred.
+All endpoints are scoped to the local user profile and novel. Desktop sidecar authorization and per-launch local credentials are tracked by NF-022 and are not yet implemented.
 
 Browser mutations authenticated by cookies require `X-CSRF-Token`, matching the readable `novelforge_csrf` cookie. The session cookie is named `novelforge_session`, contains a random token, and is backed by a database row containing only its SHA-256 hash. Set `SESSION_COOKIE_SECURE=true` whenever the API is served over HTTPS. Auth endpoints and validation failures use `application/problem+json` with a request ID.
 
@@ -46,7 +46,7 @@ Browser mutations authenticated by cookies require `X-CSRF-Token`, matching the 
 - `GET /novels/{novel_id}/export`
 - `POST /novels/import`
 
-Novel endpoints require an authenticated owner. Requests for a novel owned by another user return `404` so its existence is not disclosed. The list hides archived novels by default; `GET /novels?include_archived=true` includes the current user's archived projects. `PATCH /novels/{novel_id}` with `{"status":"active"}` restores an archived novel. Create, update and archive requests require the CSRF header.
+Novel endpoints require an authenticated local owner profile. Requests for another profile's novel return `404`. The list hides archived novels by default; `GET /novels?include_archived=true` includes the current profile's archived projects. `PATCH /novels/{novel_id}` with `{"status":"active"}` restores an archived novel. Create, update and archive requests require the CSRF header.
 
 Registration accepts `email`, `password` (12-128 characters) and optional `display_name`; email is normalized to lowercase. Registration does not create a login session. Login returns the current user and sets the session and CSRF cookies. Logout revokes the database session and clears both cookies.
 
@@ -88,7 +88,6 @@ NF-005 persists nested outline nodes and chapter planning metadata. `GET /outlin
 NF-006 creates an empty TipTap version 1 when a chapter is created. `GET /chapters/{chapter_id}` and every successful write return `ETag: "N"`. `PATCH` requires a matching `If-Match` header and appends an immutable version; a stale tag returns `409 CHAPTER_VERSION_CONFLICT`. A content update requires `content_format` and either TipTap `content` JSON or `markdown`; metadata-only patches retain the current content and still append a snapshot. Version history is returned newest first. Restore also requires the current `If-Match`, copies a selected historical body into a new version, and never changes the source version.
 
 ### Knowledge and consistency
-- `POST /novels/{novel_id}/knowledge/ingest`
 - `GET /novels/{novel_id}/knowledge/search`
 - `POST /novels/{novel_id}/consistency/check`
 - `GET /novels/{novel_id}/consistency/issues`
@@ -217,6 +216,6 @@ Response `202`:
 
 NF-009 provider integration is backend-only. `mock` is the default deterministic provider for local development and CI. Configure an OpenAI-compatible server with `AI_PROVIDER=openai-compatible`, `AI_BASE_URL`, `AI_API_KEY` and optional `AI_TIMEOUT_SECONDS`; credentials are read by the API process and are never sent to browser code. The normalized contract covers chat responses, structured output, streaming events, tool calls, usage metadata and embeddings.
 
-NF-011 exposes `GET /novels/{novel_id}/knowledge/search?query=...&limit=10`. Results are restricted to the authenticated novel and `ready` documents; approved sources are returned by default and drafts require `include_drafts=true`. Each result includes chunk/document IDs, source type/ID/revision, title, snippet content and an RRF score. Vector ranking is used when embeddings are available; lexical ranking remains the fallback when the embedding provider is unavailable.
+NF-010 currently provides an ingestion service but no public ingestion route; an API group entry must not be interpreted as an implemented endpoint. NF-021 will expose local ingestion after retry/idempotency and indexing behavior are specified. NF-011 currently exposes `GET /novels/{novel_id}/knowledge/search?query=...&limit=10`. Results are restricted to the authenticated novel and `ready` documents; approved sources are returned by default and drafts require `include_drafts=true`. Each result includes chunk/document IDs, source type/ID/revision, title, snippet content and an RRF score. Current lexical/cosine ranking runs in Python over loaded chunks; FTS5 is planned, not implemented.
 
 NF-012 exposes `GET /novels/{novel_id}/context/compile?chapter_id=...`. The deterministic context packet separates canon facts, story-time state, events, chapter/outline material and retrieved prose. Every section includes a source reference and provenance; `token_budget` bounds the packet and `story_order` controls state/event selection. The compiler reports omissions as warnings and leaves model inference empty until a generation service fills it.

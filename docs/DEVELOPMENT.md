@@ -1,5 +1,7 @@
 # NovelForge — Development Guide
 
+**Product priority:** Desktop-Local First. Windows/macOS installers are not implemented yet. This guide distinguishes today's source-development setup from the planned local runtime.
+
 ## 1. Repository layout
 
 ```text
@@ -98,26 +100,26 @@ novelforge/
 ## 5. Local development
 
 1. Copy `.env.example` to `.env`.
-2. Run OS-specific setup; install Python, Node.js and PostgreSQL locally only for server development. No Docker required.
-3. Run Alembic migrations against local PostgreSQL (or SQLite for desktop-local mode).
+2. Run OS-specific setup; install Python and Node.js for source development. Docker is not required.
+3. The audited default API configuration targets PostgreSQL; automated API and migration tests use SQLite. A supported desktop SQLite profile is planned under NF-021.
 4. Start FastAPI and Vite using the task runner.
 5. Configure a mock provider for tests.
-6. Build desktop installers through Tauri and Android APK through the Android toolchain.
+6. Desktop installers and Android APK cannot yet be built; their application targets are not implemented.
 
-For server development, copy `.env.example` to `.env`, start PostgreSQL 16 with pgvector, then run `uv run --directory apps/api alembic -c alembic.ini upgrade head`. Set `SESSION_COOKIE_SECURE=false` only for plain HTTP localhost development; shared deployments must use HTTPS and set it to `true`.
+For the current source workflow, copy `.env.example` to `.env`, configure `DATABASE_URL` for a local development database, then run `uv run --directory apps/api alembic -c alembic.ini upgrade head`. The checked-in default still points to PostgreSQL; SQLite has test coverage but is not yet the supported end-user profile. Use `SESSION_COOKIE_SECURE=false` only for plain HTTP localhost development.
 
 ## 6. CI gates
 
 - format/lint
 - type checks
 - unit tests
-- integration tests
+- SQLite integration and migration tests; PostgreSQL checks belong to the deferred server profile
 - frontend tests
 - Playwright smoke tests
 - migration validation
 - dependency and secret scanning
 - Windows/macOS desktop package build smoke tests
-- Android APK build smoke test
+- Android APK build smoke test (deferred)
 
 ## 7. Definition of Done
 

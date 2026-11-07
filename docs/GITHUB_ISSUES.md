@@ -2,14 +2,18 @@
 
 Labels: `epic`, `backend`, `frontend`, `database`, `ai`, `rag`, `security`, `docs`, `good first issue`.
 
+**Current product direction (2026-11-07): Desktop-Local First.** Windows/macOS desktop and local SQLite are the first delivery targets. SaaS, remote self-hosting, Android and multi-device sync are deferred. The audited implementation state and runnable sequence are maintained in [ROADMAP.md](ROADMAP.md).
+
+**Remote tracking audit:** the GitHub repository had zero Issues at audit revision `27360af`; this file was the only backlog. NF-001—NF-012 are not represented by remote issues and must not be described as GitHub-closed. NF-010—NF-012 have acceptance gaps recorded below.
+
 Each issue below is intended to be assigned independently to an AI coding agent after dependencies are met. Do not ask the agent to implement future issues opportunistically.
 
 ---
 
 ## NF-001 — Initialize monorepo and development tooling
 
-**Labels:** epic, backend, frontend, docs  
-**Priority:** P0  
+**Labels:** epic, backend, frontend, docs
+**Priority:** P0
 **Depends on:** none
 
 ### Goal
@@ -38,8 +42,8 @@ Create the repository skeleton and reproducible local development environment.
 
 ## NF-002 — Implement identity and novel project ownership
 
-**Labels:** backend, database, security  
-**Priority:** P0  
+**Labels:** backend, database, security
+**Priority:** P0
 **Depends on:** NF-001
 
 ### Goal
@@ -67,8 +71,8 @@ Implement user authentication baseline and novel project CRUD with strict owners
 
 ## NF-003 — Establish canon entity model and CRUD
 
-**Labels:** backend, database  
-**Priority:** P0  
+**Labels:** backend, database
+**Priority:** P0
 **Depends on:** NF-002
 
 ### Goal
@@ -91,8 +95,8 @@ Implement characters, locations, factions and world rules as novel-scoped entiti
 
 ## NF-004 — Add character states and relationships
 
-**Labels:** backend, database  
-**Priority:** P0  
+**Labels:** backend, database
+**Priority:** P0
 **Depends on:** NF-003
 
 ### Goal
@@ -115,8 +119,8 @@ Represent stable character identity separately from time-dependent story state.
 
 ## NF-005 — Implement nested outline and chapter domain
 
-**Labels:** backend, database  
-**Priority:** P0  
+**Labels:** backend, database
+**Priority:** P0
 **Depends on:** NF-002
 
 ### Goal
@@ -138,8 +142,8 @@ Implement book/volume/arc/chapter outline hierarchy and manuscript chapter recor
 
 ## NF-006 — Implement chapter versioning and optimistic concurrency
 
-**Labels:** backend, database, security  
-**Priority:** P0  
+**Labels:** backend, database, security
+**Priority:** P0
 **Depends on:** NF-005
 
 ### Goal
@@ -162,8 +166,8 @@ Prevent lost updates and preserve immutable chapter versions.
 
 ## NF-007 — Build manuscript editor with rich-text and Markdown modes
 
-**Labels:** frontend  
-**Priority:** P0  
+**Labels:** frontend
+**Priority:** P0
 **Depends on:** NF-005, NF-006
 
 ### Goal
@@ -187,8 +191,8 @@ Provide a usable chapter editor supporting TipTap and Markdown.
 
 ## NF-008 — Add canon revisions and approval workflow
 
-**Labels:** backend, database, security  
-**Priority:** P0  
+**Labels:** backend, database, security
+**Priority:** P0
 **Depends on:** NF-003, NF-004
 
 ### Goal
@@ -211,8 +215,8 @@ Make canon changes auditable and author-controlled.
 
 ## NF-009 — Implement model provider abstraction and mock provider
 
-**Labels:** ai, backend  
-**Priority:** P0  
+**Labels:** ai, backend
+**Priority:** P0
 **Depends on:** NF-001
 
 ### Goal
@@ -235,8 +239,8 @@ Create vendor-neutral chat and embedding interfaces.
 
 ## NF-010 — Implement knowledge ingestion and chunk provenance
 
-**Labels:** rag, backend, database  
-**Priority:** P0  
+**Labels:** rag, backend, database
+**Priority:** P0
 **Depends on:** NF-003, NF-005, NF-006
 
 ### Goal
@@ -255,16 +259,18 @@ Ingest canon records and chapter versions into a searchable knowledge index.
 - Failed embedding does not delete prior active index.
 - No chunk can be indexed without novel scope.
 
+**Audit status at `27360af`: partial implementation; not fully accepted.** Models and a synchronous ingestion service exist, but there is no ingestion route or durable retry job. Embeddings are stored as JSON. NF-021 tracks the local SQLite/FTS5 and remaining ingestion acceptance work.
+
 ---
 
 ## NF-011 — Implement hybrid retrieval with hard novel filters
 
-**Labels:** rag, backend, security  
-**Priority:** P0  
+**Labels:** rag, backend, security
+**Priority:** P0
 **Depends on:** NF-010
 
 ### Goal
-Search relevant story material using PostgreSQL full-text and pgvector.
+Search relevant story material through a database-neutral interface; the current target is SQLite FTS5 plus an adapter-based vector path.
 
 ### Tasks
 - Implement lexical search.
@@ -280,12 +286,14 @@ Search relevant story material using PostgreSQL full-text and pgvector.
 - Search remains functional when embeddings are unavailable (lexical fallback).
 - Ranking behavior is covered by fixture-based tests.
 
+**Audit status at `27360af`: partial implementation; not fully accepted.** Current search uses Python lexical/cosine scoring over loaded rows, not PostgreSQL full-text, pgvector or SQLite FTS5. Existing tests cover novel isolation and lexical fallback, but not a full ranking fixture/evaluation. NF-021 owns this gap.
+
 ---
 
 ## NF-012 — Build Context Compiler
 
-**Labels:** ai, rag, backend  
-**Priority:** P0  
+**Labels:** ai, rag, backend
+**Priority:** P0
 **Depends on:** NF-004, NF-005, NF-010, NF-011
 
 ### Goal
@@ -306,13 +314,15 @@ Compile a bounded, traceable context packet for a writing task.
 - Conflicting approved facts produce warning rather than silent selection.
 - Context compilation is deterministic for fixed fixtures and settings.
 
+**Audit status at `27360af`: partial implementation; not fully accepted.** SQLite tests pass and packets include source IDs, but approved-fact conflict warnings are absent, `include_recent_chapters` is unused, and retrieval does not pass the configured embedding provider. NF-021 closes these gaps before AI tools depend on the compiler.
+
 ---
 
 ## NF-013 — Implement permissioned tool registry
 
-**Labels:** ai, backend, security  
-**Priority:** P0  
-**Depends on:** NF-003, NF-005, NF-008, NF-012
+**Labels:** ai, backend, security
+**Priority:** P0
+**Depends on:** NF-003, NF-005, NF-008, NF-012, NF-021
 
 ### Goal
 Expose typed story tools to the model without granting unrestricted data access.
@@ -336,9 +346,9 @@ Expose typed story tools to the model without granting unrestricted data access.
 
 ## NF-014 — Implement generation sessions and chapter draft preview
 
-**Labels:** ai, backend, frontend  
-**Priority:** P0  
-**Depends on:** NF-007, NF-009, NF-012, NF-013
+**Labels:** ai, backend, frontend
+**Priority:** P0
+**Depends on:** NF-007, NF-009, NF-012, NF-013, NF-021
 
 ### Goal
 Generate chapter drafts grounded in compiled context and present them for review.
@@ -362,9 +372,9 @@ Generate chapter drafts grounded in compiled context and present them for review
 
 ## NF-015 — Implement post-chapter analysis proposals
 
-**Labels:** ai, backend, rag  
-**Priority:** P1  
-**Depends on:** NF-008, NF-010, NF-014
+**Labels:** ai, backend, rag
+**Priority:** P1
+**Depends on:** NF-008, NF-010, NF-014, NF-021
 
 ### Goal
 After a chapter is accepted, generate proposed summary, events, character state changes and consistency warnings.
@@ -386,9 +396,11 @@ After a chapter is accepted, generate proposed summary, events, character state 
 
 ## NF-016 — Add project export/import archive
 
-**Labels:** backend, security  
-**Priority:** P0  
+**Labels:** backend, security
+**Priority:** P0
 **Depends on:** NF-003, NF-005, NF-006, NF-008, NF-010
+
+This is a local archive workflow in the current release: include portable project data and source provenance; omit embeddings by default because they are derived and rebuildable. Backup/restore and upgrade safety must be usable without a server.
 
 ### Goal
 Make project data portable.
@@ -410,8 +422,8 @@ Make project data portable.
 
 ## NF-017 — Add consistency checks for structured facts
 
-**Labels:** backend, ai  
-**Priority:** P1  
+**Labels:** backend, ai
+**Priority:** P1
 **Depends on:** NF-004, NF-008, NF-012
 
 ### Goal
@@ -434,8 +446,8 @@ Detect deterministic continuity issues and present evidence.
 
 ## NF-018 — Native self-hosted release and operational hardening
 
-**Labels:** infra, docs, security  
-**Priority:** P0  
+**Labels:** infra, docs, security, deferred
+**Priority:** Deferred
 **Depends on:** NF-001 through NF-016
 
 ### Goal
@@ -459,6 +471,85 @@ Publish a repeatable self-hosted deployment.
 
 ---
 
+## NF-019 — Tauri desktop shell and Windows/macOS installers
+
+**Labels:** frontend, desktop, release, security
+**Priority:** P0 (first distribution milestone after local core)
+**Depends on:** NF-001, NF-013, NF-014, NF-015, NF-016, NF-017, NF-021, NF-022
+
+### Goal
+Ship a standalone desktop app using the shared React/Vite UI.
+
+### Tasks
+- Add Tauri 2 shell for Windows and macOS.
+- Package the Python API as a platform sidecar and supervise startup, readiness, crash recovery and shutdown.
+- Use the supported SQLite local profile and OS per-user application-data directory.
+- Build Windows x64 `.exe` installer and macOS arm64 `.dmg`; document Intel support separately.
+- Add signing/notarization as optional CI secrets; never commit signing keys.
+- Ensure upgrades preserve user data and run versioned migrations with backup/rollback protection.
+
+### Acceptance criteria
+- Clean Windows/macOS machines can install and launch without Python, Node.js, PostgreSQL or Docker.
+- Project data persists across restart and upgrade; backup/restore is available.
+- Local API binds only to loopback and requires local request authorization.
+- CI produces and smoke-tests installer artifacts.
+
+## NF-020 — Android APK client
+
+**Labels:** frontend, mobile, release, security, deferred
+**Priority:** Deferred
+**Depends on:** NF-019
+
+Android remains in the backlog for future reconsideration. It is not part of the Desktop-Local First release. No Android-specific work should be included in NF-013—NF-019.
+
+## NF-021 — Local SQLite, FTS5 and RAG/Context acceptance
+
+**Labels:** backend, database, rag, security
+**Priority:** P0 prerequisite for NF-013—NF-017
+**Depends on:** NF-010, NF-011, NF-012
+
+### Goal
+Make SQLite a supported local persistence/search profile and close the audited NF-010—NF-012 acceptance gaps before AI features depend on them.
+
+### Tasks
+- Define database and retrieval adapter boundaries; make the desktop API default to a file-backed SQLite database in a configured user-data directory.
+- Keep PostgreSQL types and SQL behind the deferred server adapter; do not require it for local operation.
+- Add an additive, reversible SQLite FTS5 migration/index and novel/visibility/source filters before ranking.
+- Add a novel-scoped ingestion route and deterministic retry/idempotency behavior; retain source ID/revision, content hash, chunker version and chunk provenance.
+- Preserve vector retrieval behind an interface. Benchmark exact cosine on a bounded local corpus and compare packaged SQLite vector-extension options before selecting one.
+- Implement and test NF-012 conflict warnings, recent-chapter selection and configured embedding retrieval.
+- Document backup-before-migration, schema upgrade and rebuild behavior for derived indexes.
+
+### Acceptance criteria
+- Fresh file-backed SQLite database migrates to head and survives API restart.
+- FTS5 results are novel- and visibility-scoped; vector failure falls back to lexical retrieval.
+- Retrieval returns stable source IDs/revisions; cross-novel fixtures return zero foreign results.
+- Ingestion retries are idempotent and embedding failure preserves the previous active index.
+- Context compiler detects conflicting approved facts, honors story time and recent chapter settings, and stays within its token budget.
+- No existing public API or persisted table contract is silently changed; any required migration includes compatibility and rollback evidence.
+
+## NF-022 — Desktop sidecar lifecycle and loopback security
+
+**Labels:** desktop, backend, security
+**Priority:** P0 prerequisite for NF-019
+**Depends on:** NF-001, NF-021
+
+### Goal
+Run the local FastAPI process as a supervised desktop child process without exposing the API to the LAN.
+
+### Tasks
+- Specify ephemeral port allocation and per-launch local credential/IPC authorization.
+- Add health/readiness handshake and bounded startup/crash recovery.
+- Implement clean shutdown and stale-process cleanup on Windows and macOS.
+- Keep secrets out of browser assets and logs; resolve database/log paths under per-user application data.
+- Add platform-specific lifecycle and loopback-binding tests.
+
+### Acceptance criteria
+- Listener binds to loopback only and rejects unauthenticated local mutations.
+- Desktop does not report ready before the API and database are ready.
+- Closing the app terminates its sidecar; relaunch recovers persisted data.
+- Crash recovery is bounded and failures are visible without corrupting project data.
+
 ## Agent execution contract
 
 For every issue, the coding agent must:
@@ -473,49 +564,3 @@ For every issue, the coding agent must:
 8. Summarize files changed, trade-offs and known limitations.
 9. Never claim tests passed unless they were actually run.
 10. Stop and report blockers rather than inventing missing requirements.
-
-
-## NF-019 — Tauri desktop shell and Windows/macOS installers
-
-**Labels:** frontend, desktop, release, security  
-**Priority:** P0  
-**Depends on:** NF-001, NF-002
-
-### Goal
-Ship an installable desktop app using the shared React/Vite UI.
-
-### Tasks
-- Add Tauri 2 shell for Windows and macOS.
-- Package FastAPI local backend as a platform sidecar executable and supervise its lifecycle.
-- Add SQLite local profile and per-user application data directory.
-- Build Windows x64 `.exe` installer and macOS `.dmg` for Apple Silicon; document Intel support separately.
-- Add code-signing/notarization secrets as optional CI configuration; never commit signing keys.
-- Add app versioning, migration-on-upgrade, backup/restore and graceful shutdown.
-
-### Acceptance criteria
-- Clean Windows/macOS machines can install and launch without Python, Node, PostgreSQL or Docker installed.
-- Local project data persists across restarts and upgrades.
-- Installer upgrades do not overwrite user data.
-- Local API binds to loopback only and validates local origins.
-- CI produces installer artifacts.
-
-## NF-020 — Android APK client
-
-**Labels:** frontend, mobile, release, security  
-**Priority:** P1  
-**Depends on:** NF-001, NF-002, NF-019
-
-### Goal
-Provide an installable Android client using the shared API and UI.
-
-### Tasks
-- Add Tauri 2 Android target and responsive mobile navigation/editor experience.
-- Implement secure token storage and API endpoint configuration.
-- Add signed release APK build; document signing and sideload installation.
-- Handle offline/network errors without losing unsaved edits; full offline sync is out of scope.
-
-### Acceptance criteria
-- APK installs and launches on supported Android versions.
-- User can sign in to SaaS or a self-hosted server and access authorized novels.
-- Tokens are not stored in plaintext preferences or logs.
-- Build pipeline produces APK artifact and smoke tests pass.

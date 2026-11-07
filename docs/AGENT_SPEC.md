@@ -92,9 +92,10 @@ If two canon facts conflict, return a conflict object. Do not silently select on
 
 ## 5. Retrieval strategy
 
-MVP:
-- PostgreSQL full-text search.
-- pgvector cosine similarity.
+Desktop-local target:
+- SQLite FTS5 lexical search (planned under NF-021).
+- Embeddings behind a provider-neutral vector-search adapter; current JSON/Python cosine scoring is a prototype, not a scalable index.
+- Do not make PostgreSQL or pgvector a desktop runtime dependency. They remain a deferred server profile.
 - Hard metadata filtering before ranking.
 - Reciprocal rank fusion.
 - Return source IDs, revision IDs and snippets.
