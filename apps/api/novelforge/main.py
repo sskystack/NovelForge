@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from novelforge.canon.revision_router import router as revision_router
 from novelforge.canon.router import router as canon_router
 from novelforge.database import create_database_engine, make_session_factory
 from novelforge.errors import (
@@ -67,6 +68,7 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(projects_router, prefix="/api/v1")
     application.include_router(canon_router, prefix="/api/v1")
+    application.include_router(revision_router, prefix="/api/v1")
     application.include_router(planning_router, prefix="/api/v1")
     return application
 

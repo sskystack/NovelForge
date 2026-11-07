@@ -30,6 +30,8 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "outline_nodes",
             "chapters",
             "chapter_versions",
+            "canon_proposals",
+            "canon_revisions",
         }.issubset(set(inspector.get_table_names()))
 
         command.downgrade(config, "20261107_0001")
@@ -41,6 +43,8 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "outline_nodes",
             "chapters",
             "chapter_versions",
+            "canon_proposals",
+            "canon_revisions",
         }.intersection(inspector.get_table_names())
 
         command.upgrade(config, "head")
@@ -56,6 +60,8 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "outline_nodes",
             "chapters",
             "chapter_versions",
+            "canon_proposals",
+            "canon_revisions",
         }.issubset(set(inspector.get_table_names()))
         engine.dispose()
 

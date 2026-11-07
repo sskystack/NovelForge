@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     Numeric,
     String,
     UniqueConstraint,
@@ -31,6 +32,12 @@ class CanonStatus(StrEnum):
     PROPOSED = "proposed"
     CANON = "canon"
     DEPRECATED = "deprecated"
+
+
+class ProposalStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 canon_status_type = SqlEnum(
@@ -243,4 +250,91 @@ class Relationship(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+
+proposal_status_type = SqlEnum(
+    ProposalStatus,
+    name="proposal_status",
+    native_enum=False,
+    create_constraint=True,
+    values_callable=lambda values: [value.value for value in values],
+)
+
+
+class CanonProposal(Base):
+    __tablename__ = "canon_proposals"
+    __table_args__ = (
+        UniqueConstraint("novel_id", "id", name="uq_canon_proposals_novel_id"),
+        Index("ix_canon_proposals_status", "novel_id", "status", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    novel_id: Mapped[UUID] = mapped_column(
+        ForeignKey("novels.id", ondelete="CASCADE"), nullable=False
+    )
+    entity_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    entity_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    proposed_data: Mapped[dict[str, object]] = mapped_column(json_type, nullable=False)
+    rationale: Mapped[str] = mapped_column(String, nullable=False, default="", server_default="")
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[ProposalStatus] = mapped_column(
+        proposal_status_type,
+        nullable=False,
+        default=ProposalStatus.PENDING,
+        server_default="pending",
+    )
+    reviewed_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, server_default=func.now()
+    )
+
+
+class CanonRevision(Base):
+    __tablename__ = "canon_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "novel_id",
+            "entity_type",
+            "entity_id",
+            "revision_number",
+            name="uq_canon_revision_number",
+        ),
+        Index(
+            "ix_canon_revisions_entity",
+            "novel_id",
+            "entity_type",
+            "entity_id",
+            "revision_number",
+        ),
+        ForeignKeyConstraint(
+            ["novel_id", "source_proposal_id"],
+            ["canon_proposals.novel_id", "canon_proposals.id"],
+            ondelete="SET NULL",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    novel_id: Mapped[UUID] = mapped_column(
+        ForeignKey("novels.id", ondelete="CASCADE"), nullable=False
+    )
+    entity_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    entity_id: Mapped[UUID] = mapped_column(nullable=False)
+    revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    before_data: Mapped[dict[str, object] | None] = mapped_column(json_type, nullable=True)
+    after_data: Mapped[dict[str, object]] = mapped_column(json_type, nullable=False)
+    change_reason: Mapped[str] = mapped_column(
+        String, nullable=False, default="", server_default=""
+    )
+    actor_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    source_proposal_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, server_default=func.now()
     )

@@ -1,6 +1,8 @@
 """Import domain models so Alembic sees the complete metadata registry."""
 
 from novelforge.canon.models import (
+    CanonProposal,
+    CanonRevision,
     Character,
     CharacterState,
     Faction,
@@ -17,6 +19,8 @@ __all__ = [
     "AuthSession",
     "Character",
     "CharacterState",
+    "CanonProposal",
+    "CanonRevision",
     "Chapter",
     "ChapterVersion",
     "Faction",

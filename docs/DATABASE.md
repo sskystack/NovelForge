@@ -63,6 +63,8 @@ NF-006 adds immutable `chapter_versions`, unique by novel, chapter and version n
 ### Canon revision
 Any accepted change to canon creates a `canon_revisions` row with entity type, entity ID, revision number, before/after JSON and actor. AI proposals do not create canonical revisions until approved.
 
+NF-008 adds `canon_proposals`, scoped to a novel and carrying proposed JSON, rationale, creator, review status and reviewer timestamps. `canon_revisions` is append-only at the application layer, uniquely numbered per novel/entity, and stores the actor, reason, before/after snapshots and optional originating proposal. Approval updates the canon row, proposal decision and revision together; restore appends a new revision rather than rewriting history.
+
 ### Chapter version
 `chapters` is the current logical chapter record. `chapter_versions` stores immutable content snapshots and editor format. Autosave uses `version_number` or an ETag to prevent lost updates.
 
