@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "npm --prefix ../web run dev",
     "build": "npm --prefix ../web run build",
+    "tauri": "tauri",
     "tauri:build": "npm --prefix ../web run build && tauri build",
     "tauri:check": "cargo check --manifest-path src-tauri/Cargo.toml",
     "sidecar": "uv run --directory ../api pyinstaller --noconfirm --clean --onefile --name novelforge-api --distpath src-tauri/binaries --workpath .pyinstaller-work --specpath .pyinstaller-spec ../api/novelforge/desktop_entry.py"

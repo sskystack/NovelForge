@@ -64,7 +64,7 @@ jobs:
       - run: npm ci --prefix apps/desktop
       - run: npm run build --prefix apps/web
       - run: npm exec --prefix apps/desktop -- tauri android init --ci
-      - run: npm exec --prefix apps/desktop -- tauri android build --apk --ci --config apps/desktop/src-tauri/tauri.android.conf.json
+      - run: npm exec --prefix apps/desktop -- tauri android build --apk --ci --config apps/desktop/src-tauri/tauri.android.conf.json -- --no-default-features
       - uses: actions/upload-artifact@v4
         with:
           name: novelforge-android
