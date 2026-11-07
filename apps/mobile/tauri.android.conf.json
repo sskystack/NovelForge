@@ -3,5 +3,5 @@
   "productName": "NovelForge",
   "identifier": "dev.novelforge.mobile",
   "build": {"frontendDist": "../web/dist"},
-  "bundle": {"active": true, "targets": ["android"]}
+  "bundle": {"active": true}
 }
