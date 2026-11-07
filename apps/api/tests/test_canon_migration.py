@@ -35,6 +35,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "knowledge_documents",
             "knowledge_chunks",
             "tool_call_audits",
+            "generation_sessions",
         }.issubset(set(inspector.get_table_names()))
 
         command.downgrade(config, "20261107_0001")
@@ -51,6 +52,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "knowledge_documents",
             "knowledge_chunks",
             "tool_call_audits",
+            "generation_sessions",
         }.intersection(inspector.get_table_names())
 
         command.upgrade(config, "head")
@@ -71,6 +73,7 @@ def test_canon_migration_up_down_up(monkeypatch) -> None:
             "knowledge_documents",
             "knowledge_chunks",
             "tool_call_audits",
+            "generation_sessions",
         }.issubset(set(inspector.get_table_names()))
         engine.dispose()
 

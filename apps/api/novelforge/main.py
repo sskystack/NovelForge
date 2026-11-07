@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from novelforge.ai.context_router import router as context_router
+from novelforge.ai.generation_router import router as generation_router
 from novelforge.ai.tool_router import router as tool_router
 from novelforge.canon.revision_router import router as revision_router
 from novelforge.canon.router import router as canon_router
@@ -75,6 +76,7 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
     application.include_router(knowledge_router, prefix="/api/v1")
     application.include_router(context_router, prefix="/api/v1")
     application.include_router(tool_router, prefix="/api/v1")
+    application.include_router(generation_router, prefix="/api/v1")
     application.include_router(planning_router, prefix="/api/v1")
     return application
 

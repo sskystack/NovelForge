@@ -69,6 +69,8 @@ NF-010 adds `knowledge_documents` keyed by novel, source type/ID and source revi
 
 NF-013 adds `tool_call_audits`, a novel-scoped append-only record of tool name, generation ID, outcome, duration and bounded input summary. It is separate from canonical data and cannot grant a tool write access by itself.
 
+NF-014 adds `generation_sessions`, storing task profile, provider/model metadata, bounded context snapshot, generated preview, expected chapter version, status and failure details. A session is accepted separately from generation so preview never mutates manuscript content.
+
 NF-011 retrieval always filters `novel_id`, active chunks, ready documents and visibility before ranking. The service combines lexical and vector rankings using reciprocal rank fusion; vector failures do not prevent lexical results.
 
 ### Chapter version

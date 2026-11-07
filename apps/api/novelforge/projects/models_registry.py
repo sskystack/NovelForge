@@ -1,5 +1,6 @@
 """Import domain models so Alembic sees the complete metadata registry."""
 
+from novelforge.ai.generation_models import GenerationSession
 from novelforge.ai.tool_models import ToolCallAudit
 from novelforge.canon.models import (
     CanonProposal,
@@ -29,6 +30,7 @@ __all__ = [
     "KnowledgeChunk",
     "KnowledgeDocument",
     "ToolCallAudit",
+    "GenerationSession",
     "Location",
     "Novel",
     "OutlineNode",
