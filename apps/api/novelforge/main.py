@@ -17,6 +17,7 @@ from novelforge.errors import (
     validation_error_handler,
 )
 from novelforge.identity.router import router as identity_router
+from novelforge.planning.router import router as planning_router
 from novelforge.projects.router import router as projects_router
 from novelforge.settings import Settings
 
@@ -66,6 +67,7 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(projects_router, prefix="/api/v1")
     application.include_router(canon_router, prefix="/api/v1")
+    application.include_router(planning_router, prefix="/api/v1")
     return application
 
 

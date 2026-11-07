@@ -33,6 +33,8 @@ NF-003 introduces SQLAlchemy models and an Alembic migration for `characters`, `
 
 NF-004 adds `story_events`, `character_states` and `relationships`. Character state has a numeric `story_order`, optional exclusive `valid_to_order`, structured state JSON, approval status and optional event source. A composite `(novel_id, character_id)` foreign key prevents states from linking a character in another novel; an event source uses the same novel scope. Relationships have directional character endpoints, type, attributes and optional half-open validity interval. Both endpoints reference `(novel_id, id)`, with a check against self-relations. Time-order indexes support state lookup and event ordering.
 
+NF-005 adds `outline_nodes` with a composite self-foreign-key for parent/novel consistency, typed node levels, stable sibling order and optional planned story-time bounds. `chapters` may link only to a chapter-type outline node through a same-novel composite foreign key. Outline deletion clears chapter links before deleting the subtree. Chapter list indexes support number and story-order scans; API pagination orders null values explicitly and uses an opaque cursor.
+
 ### Plot
 - `outline_nodes`
 - `chapters`

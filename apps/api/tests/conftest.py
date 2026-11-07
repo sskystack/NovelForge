@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from novelforge.database import Base, create_database_engine, make_session_factory
 from novelforge.main import create_app
+from novelforge.projects import models_registry as _models_registry  # noqa: F401
 from novelforge.settings import Settings
 
 

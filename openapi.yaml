@@ -591,6 +591,169 @@ paths:
       responses:
         "200":
           description: Search results with source provenance
+  /novels/{novel_id}/outlines:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: Retrieve the nested outline tree
+      responses:
+        "200":
+          description: Outline roots and recursively nested children
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OutlineNode" }
+    post:
+      summary: Create an outline node
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OutlineNodeCreate" }
+      responses:
+        "201":
+          description: Outline node created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutlineNode" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/outlines/reorder:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    post:
+      summary: Set the complete order of sibling outline nodes
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OutlineReorder" }
+      responses:
+        "200":
+          description: Reordered siblings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OutlineNode" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/outlines/{node_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - $ref: "#/components/parameters/OutlineNodeId"
+    get:
+      summary: Get an outline node
+      responses:
+        "200":
+          description: Outline node
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutlineNode" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      summary: Update or move an outline node
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OutlineNodeUpdate" }
+      responses:
+        "200":
+          description: Outline node updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutlineNode" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+    delete:
+      summary: Delete an outline subtree and unlink its chapters
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204": { description: Outline subtree deleted }
+        "404": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/chapters:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: List chapter metadata
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: [string, "null"] }
+      responses:
+        "200":
+          description: Chapter page with an opaque next cursor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChapterPage" }
+    post:
+      summary: Create chapter metadata
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChapterCreate" }
+      responses:
+        "201":
+          description: Chapter created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chapter" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/chapters/{chapter_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - name: chapter_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get chapter metadata
+      responses:
+        "200":
+          description: Chapter
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chapter" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      summary: Update chapter metadata
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChapterUpdate" }
+      responses:
+        "200":
+          description: Chapter metadata updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chapter" }
+        "404": { $ref: "#/components/responses/Problem" }
+    delete:
+      summary: Delete a chapter
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204": { description: Chapter deleted }
+        "404": { $ref: "#/components/responses/Problem" }
   /novels/{novel_id}/ai/generations:
     parameters:
       - $ref: "#/components/parameters/NovelId"
@@ -613,37 +776,6 @@ paths:
                 properties:
                   generation_id: { type: string, format: uuid }
                   status: { type: string, enum: [queued] }
-  /novels/{novel_id}/chapters/{chapter_id}:
-    parameters:
-      - $ref: "#/components/parameters/NovelId"
-      - name: chapter_id
-        in: path
-        required: true
-        schema: { type: string, format: uuid }
-    patch:
-      summary: Update chapter using optimistic concurrency
-      parameters:
-        - in: header
-          name: If-Match
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [content_format]
-              properties:
-                title: { type: string }
-                content_format: { type: string, enum: [tiptap, markdown] }
-                content: { type: object, additionalProperties: true }
-                markdown: { type: string }
-      responses:
-        "200":
-          description: New version saved
-        "409":
-          description: Version conflict
 components:
   securitySchemes:
     sessionCookie:
@@ -658,6 +790,11 @@ components:
       schema: { type: string, format: uuid }
     EntityId:
       name: entity_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OutlineNodeId:
+      name: node_id
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -945,6 +1082,95 @@ components:
             canon_status: { type: string, enum: [draft, proposed, canon, deprecated] }
             created_at: { type: string, format: date-time }
             updated_at: { type: string, format: date-time }
+    OutlineNodeCreate:
+      type: object
+      required: [node_type, title]
+      properties:
+        parent_id: { type: [string, "null"], format: uuid }
+        node_type: { type: string, enum: [book, volume, arc, chapter, scene, beat] }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        synopsis: { type: string, maxLength: 50000 }
+        sort_order: { type: integer, default: 0 }
+        planned_start_order: { type: [number, "null"], multipleOf: 0.000001 }
+        planned_end_order: { type: [number, "null"], multipleOf: 0.000001 }
+        status: { type: string, default: planned }
+        linked_entity_ids: { type: array, maxItems: 200, items: { type: string, format: uuid } }
+    OutlineNodeUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        parent_id: { type: [string, "null"], format: uuid }
+        node_type: { type: string, enum: [book, volume, arc, chapter, scene, beat] }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        synopsis: { type: string, maxLength: 50000 }
+        sort_order: { type: integer }
+        planned_start_order: { type: [number, "null"], multipleOf: 0.000001 }
+        planned_end_order: { type: [number, "null"], multipleOf: 0.000001 }
+        status: { type: string }
+        linked_entity_ids: { type: array, maxItems: 200, items: { type: string, format: uuid } }
+    OutlineNode:
+      allOf:
+        - type: object
+          required: [id, novel_id, node_type, title, sort_order, created_at, updated_at, children]
+          properties:
+            id: { type: string, format: uuid }
+            novel_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+            children:
+              type: array
+              items: { $ref: "#/components/schemas/OutlineNode" }
+        - $ref: "#/components/schemas/OutlineNodeCreate"
+    OutlineReorder:
+      type: object
+      required: [ordered_node_ids]
+      properties:
+        parent_id: { type: [string, "null"], format: uuid }
+        ordered_node_ids:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    ChapterCreate:
+      type: object
+      required: [title]
+      properties:
+        outline_node_id: { type: [string, "null"], format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        chapter_number: { type: [integer, "null"] }
+        story_order: { type: [number, "null"], multipleOf: 0.000001 }
+        status: { type: string, enum: [planned, draft, in_progress, review, completed], default: planned }
+        summary: { type: string, maxLength: 50000 }
+    ChapterUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        outline_node_id: { type: [string, "null"], format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        chapter_number: { type: [integer, "null"] }
+        story_order: { type: [number, "null"], multipleOf: 0.000001 }
+        status: { type: string, enum: [planned, draft, in_progress, review, completed] }
+        summary: { type: string, maxLength: 50000 }
+    Chapter:
+      allOf:
+        - type: object
+          required: [id, novel_id, current_version, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            novel_id: { type: string, format: uuid }
+            current_version: { type: integer }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+        - $ref: "#/components/schemas/ChapterCreate"
+    ChapterPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Chapter" }
+        next_cursor: { type: [string, "null"] }
     GenerationCreate:
       type: object
       required: [task, instructions]

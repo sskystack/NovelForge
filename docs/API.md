@@ -71,12 +71,15 @@ NF-004 adds `POST|GET /novels/{novel_id}/events`, `POST|GET /novels/{novel_id}/c
 ### Planning and chapters
 - `GET|POST /novels/{novel_id}/outlines`
 - `PATCH|DELETE /novels/{novel_id}/outlines/{node_id}`
+- `POST /novels/{novel_id}/outlines/reorder`
 - `GET|POST /novels/{novel_id}/chapters`
-- `GET|PATCH /novels/{novel_id}/chapters/{chapter_id}`
+- `GET|PATCH|DELETE /novels/{novel_id}/chapters/{chapter_id}`
 - `GET /novels/{novel_id}/chapters/{chapter_id}/versions`
 - `POST /novels/{novel_id}/chapters/{chapter_id}/restore/{version_id}`
 - `GET|POST /novels/{novel_id}/events`
 - `GET|POST /novels/{novel_id}/foreshadowings`
+
+NF-005 persists nested outline nodes and chapter planning metadata. `GET /outlines` returns a recursively nested tree; children use deterministic `sort_order`, title and ID ordering. `POST /outlines/reorder` accepts a parent and the complete sibling ID order, requiring every sibling exactly once. Parent changes reject cycles and cross-novel references. Deleting an outline node deletes its subtree and clears linked chapter outline IDs. Only `chapter` outline nodes can be assigned to chapter rows. Chapter lists accept `limit` (1-100) and an opaque `cursor`; ordering is deterministic by number, story order and ID.
 
 ### Knowledge and consistency
 - `POST /novels/{novel_id}/knowledge/ingest`
