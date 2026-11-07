@@ -214,3 +214,5 @@ Response `202`:
 - Validate all provider output against schemas.
 - Use CSRF protection for cookie-authenticated browser mutations.
 - Limit upload size, MIME types and archive extraction paths.
+
+NF-009 provider integration is backend-only. `mock` is the default deterministic provider for local development and CI. Configure an OpenAI-compatible server with `AI_PROVIDER=openai-compatible`, `AI_BASE_URL`, `AI_API_KEY` and optional `AI_TIMEOUT_SECONDS`; credentials are read by the API process and are never sent to browser code. The normalized contract covers chat responses, structured output, streaming events, tool calls, usage metadata and embeddings.

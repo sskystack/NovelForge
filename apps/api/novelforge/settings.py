@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     session_ttl_hours: int = 336
     session_cookie_secure: bool = False
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    ai_provider: str = "mock"
+    ai_base_url: str = ""
+    ai_api_key: str = ""
+    ai_timeout_seconds: float = 30.0
 
     @property
     def allowed_origins(self) -> list[str]:
