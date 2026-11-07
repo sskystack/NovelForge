@@ -32,6 +32,7 @@ jobs:
           target: ${{ matrix.target }}
       - uses: astral-sh/setup-uv@v5
       - run: npm ci --prefix apps/web
+      - run: npm ci --prefix apps/desktop
       - run: uv sync --directory apps/api --locked
       - run: uv run --directory apps/api pyinstaller --noconfirm --clean --onefile --name novelforge-api --distpath ../desktop/src-tauri/binaries --workpath ../desktop/.pyinstaller-work --specpath ../desktop/.pyinstaller-spec --paths . novelforge/desktop_entry.py
       - shell: bash
