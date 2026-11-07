@@ -33,8 +33,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: npm ci --prefix apps/web
       - run: uv sync --directory apps/api --locked
-      - run: python -m pip install pyinstaller
-      - run: python -m PyInstaller --noconfirm --clean --onefile --name novelforge-api --distpath apps/desktop/src-tauri/binaries --paths apps/api apps/api/novelforge/desktop_entry.py
+      - run: uv run --directory apps/api pyinstaller --noconfirm --clean --onefile --name novelforge-api --distpath ../desktop/src-tauri/binaries --workpath ../desktop/.pyinstaller-work --specpath ../desktop/.pyinstaller-spec --paths . novelforge/desktop_entry.py
       - shell: bash
         run: mv apps/desktop/src-tauri/binaries/novelforge-api apps/desktop/src-tauri/binaries/novelforge-api-${{ matrix.target }}${{ runner.os == 'Windows' && '.exe' || '' }}
       - run: npm exec --prefix apps/desktop -- tauri build --bundles ${{ matrix.bundle }} --target ${{ matrix.target }} --no-sign
@@ -60,7 +59,7 @@ jobs:
       - run: npm ci --prefix apps/desktop
       - run: npm run build --prefix apps/web
       - run: npm exec --prefix apps/desktop -- tauri android init --ci --skip-targets-install
-      - run: npm exec --prefix apps/desktop -- tauri android build --apk --ci
+      - run: npm exec --prefix apps/desktop -- tauri android build --apk --ci --config apps/desktop/src-tauri/tauri.android.conf.json
       - uses: actions/upload-artifact@v4
         with:
           name: novelforge-android

@@ -5,6 +5,5 @@
   "identifier": "dev.novelforge.desktop",
   "build": {"frontendDist": "../../web/dist", "devUrl": "http://localhost:5173"},
   "app": {"withGlobalTauri": false, "windows": [{"label": "main", "title": "NovelForge", "width": 1440, "height": 900}], "security": {"csp": "default-src 'self' http://127.0.0.1:* http://localhost:*; connect-src 'self' http://127.0.0.1:* http://localhost:*"}},
-  "bundle": {"externalBin": ["binaries/novelforge-api"],
-  "active": true, "targets": ["nsis", "dmg"], "createUpdaterArtifacts": false}
+  "bundle": {"active": true, "targets": ["nsis", "dmg"], "externalBin": ["binaries/novelforge-api"], "createUpdaterArtifacts": false}
 }

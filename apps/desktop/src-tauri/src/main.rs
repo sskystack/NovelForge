@@ -1,14 +1,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
 use tauri::Manager;
 
+#[cfg(desktop)]
+use std::process::{Child, Command, Stdio};
+#[cfg(desktop)]
+use std::sync::Mutex;
+
+#[cfg(desktop)]
 struct ApiProcess(Mutex<Option<Child>>);
 
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
+            #[cfg(desktop)]
+            {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let api_origin = "http://127.0.0.1:8765";
@@ -25,9 +31,12 @@ fn main() {
             let child = command.spawn()?;
             app.manage(ApiProcess(Mutex::new(Some(child))));
             app.manage(api_origin.to_string());
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
+            #[cfg(desktop)]
+            {
             if let tauri::WindowEvent::Destroyed = event {
                 if let Some(process) = window.app_handle().try_state::<ApiProcess>() {
                     if let Ok(mut child) = process.0.lock() {
@@ -37,6 +46,7 @@ fn main() {
                         }
                     }
                 }
+            }
             }
         })
         .run(tauri::generate_context!())

@@ -4,5 +4,5 @@
   "version": "0.1.0",
   "identifier": "dev.novelforge.mobile",
   "build": {"frontendDist": "../../web/dist"},
-  "bundle": {"active": true}
+  "bundle": {"active": true, "externalBin": []}
 }
