@@ -14,7 +14,8 @@ type Mode = "rich" | "markdown";
 type Generation = { id: string; status: string; output: { markdown?: string; source_ids?: string[] }; expected_version: number | null };
 type Analysis = { id: string; chapter_version_id: string; summary_candidate: string; candidates: { events: unknown[]; character_states: unknown[]; consistency_warnings: unknown[] }; proposal_ids: string[] };
 type AnalysisProposal = { id: string; proposal_type: string; payload: Record<string, unknown>; evidence: Record<string, unknown>; status: string };
-let apiOrigin = "";
+// The desktop sidecar listens on loopback; a saved origin can override this for self-hosted/mobile use.
+let apiOrigin = "http://127.0.0.1:8765";
 
 function parseMarkdown(markdown: string): Record<string, unknown> {
   const nodes: Record<string, unknown>[] = [];
@@ -111,7 +112,10 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   useEffect(() => {
     let active = true;
-    api<{ status: string }>("/health").then(() => { if (active) setServiceStatus("ready"); }).catch(() => { if (active) setServiceStatus("unavailable"); });
+    fetch(`${apiOrigin}/health`).then((response) => {
+      if (!response.ok) throw new Error("API health check failed");
+      if (active) setServiceStatus("ready");
+    }).catch(() => { if (active) setServiceStatus("unavailable"); });
     return () => { active = false; };
   }, []);
 

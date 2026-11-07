@@ -39,6 +39,7 @@ pub fn run() {
                     .env("NOVELFORGE_HOST", "127.0.0.1")
                     .env("NOVELFORGE_PORT", "8765")
                     .env("SESSION_COOKIE_SECURE", "false")
+                    .env("SESSION_COOKIE_SAMESITE", "lax")
                     .env("CORS_ORIGINS", "tauri://localhost,http://tauri.localhost")
                     .stdout(Stdio::null())
                     .stderr(Stdio::null());
