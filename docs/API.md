@@ -62,6 +62,10 @@ Registration accepts `email`, `password` (12-128 characters) and optional `displ
 - `POST /novels/{novel_id}/canon/proposals/{proposal_id}/approve`
 - `POST /novels/{novel_id}/canon/proposals/{proposal_id}/reject`
 
+NF-003 provides full CRUD for characters, locations, factions and world rules under `/api/v1/novels/{novel_id}/...`. All requests require an authenticated owner; every child lookup includes both `novel_id` and entity ID, returning `404` for records outside the path novel. Collection reads return approved `canon` records by default. Authors may pass `include_non_canon=true` to inspect drafts and proposals. New records default to `draft`; direct creation or promotion to `canon` is rejected until the approval/revision workflow is implemented. Approved records cannot be edited or deleted through ordinary CRUD. Create, update and delete require the CSRF header.
+
+Character records contain stable identity fields (`name`, `aliases`, `summary`, `personality`, `background`, `goals`, `constraints`, `attributes`). Locations and factions contain `name`, `description` and `attributes`. World rules contain `title`, `category`, `description` and structured `constraints`.
+
 ### Planning and chapters
 - `GET|POST /novels/{novel_id}/outlines`
 - `PATCH|DELETE /novels/{novel_id}/outlines/{node_id}`

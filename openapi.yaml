@@ -162,21 +162,294 @@ paths:
     parameters:
       - $ref: "#/components/parameters/NovelId"
     get:
-      summary: List characters
+      summary: List characters in the novel
+      parameters:
+        - $ref: "#/components/parameters/IncludeNonCanon"
       responses:
         "200":
-          description: Character list
+          description: Characters, canonical only unless requested otherwise
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Character" }
+        "404": { $ref: "#/components/responses/Problem" }
     post:
-      summary: Create character
+      summary: Create a draft character
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/CharacterCreate"
+            schema: { $ref: "#/components/schemas/CharacterCreate" }
       responses:
         "201":
-          description: Created
+          description: Character created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Character" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/characters/{entity_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - $ref: "#/components/parameters/EntityId"
+    get:
+      summary: Get a character in the novel
+      responses:
+        "200":
+          description: Character
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Character" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      summary: Update a non-canonical character
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CharacterUpdate" }
+      responses:
+        "200":
+          description: Character updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Character" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+    delete:
+      summary: Delete a non-canonical character
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204": { description: Character deleted }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/locations:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: List locations in the novel
+      parameters:
+        - $ref: "#/components/parameters/IncludeNonCanon"
+      responses:
+        "200":
+          description: Locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Location" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      summary: Create a draft location
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LocationCreate" }
+      responses:
+        "201":
+          description: Location created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Location" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/locations/{entity_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - $ref: "#/components/parameters/EntityId"
+    get:
+      summary: Get a location in the novel
+      responses:
+        "200":
+          description: Location
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Location" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      summary: Update a non-canonical location
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LocationUpdate" }
+      responses:
+        "200":
+          description: Location updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Location" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+    delete:
+      summary: Delete a non-canonical location
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204": { description: Location deleted }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/factions:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: List factions in the novel
+      parameters:
+        - $ref: "#/components/parameters/IncludeNonCanon"
+      responses:
+        "200":
+          description: Factions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Faction" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      summary: Create a draft faction
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FactionCreate" }
+      responses:
+        "201":
+          description: Faction created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Faction" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/factions/{entity_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - $ref: "#/components/parameters/EntityId"
+    get:
+      summary: Get a faction in the novel
+      responses:
+        "200":
+          description: Faction
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Faction" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      summary: Update a non-canonical faction
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FactionUpdate" }
+      responses:
+        "200":
+          description: Faction updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Faction" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+    delete:
+      summary: Delete a non-canonical faction
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204": { description: Faction deleted }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/world-rules:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+    get:
+      summary: List world rules in the novel
+      parameters:
+        - $ref: "#/components/parameters/IncludeNonCanon"
+      responses:
+        "200":
+          description: World rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/WorldRule" }
+        "404": { $ref: "#/components/responses/Problem" }
+    post:
+      summary: Create a draft world rule
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorldRuleCreate" }
+      responses:
+        "201":
+          description: World rule created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorldRule" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /novels/{novel_id}/world-rules/{entity_id}:
+    parameters:
+      - $ref: "#/components/parameters/NovelId"
+      - $ref: "#/components/parameters/EntityId"
+    get:
+      summary: Get a world rule in the novel
+      responses:
+        "200":
+          description: World rule
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorldRule" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      summary: Update a non-canonical world rule
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorldRuleUpdate" }
+      responses:
+        "200":
+          description: World rule updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorldRule" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+    delete:
+      summary: Delete a non-canonical world rule
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204": { description: World rule deleted }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /novels/{novel_id}/knowledge/search:
     parameters:
       - $ref: "#/components/parameters/NovelId"
@@ -258,6 +531,17 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    EntityId:
+      name: entity_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IncludeNonCanon:
+      name: include_non_canon
+      in: query
+      required: false
+      description: Include draft, proposed and deprecated records.
+      schema: { type: boolean, default: false }
     CsrfToken:
       name: X-CSRF-Token
       in: header
@@ -342,15 +626,117 @@ components:
         writing_preferences: { type: object, additionalProperties: true }
         status: { type: string, enum: [active, archived] }
     CharacterCreate:
+      allOf:
+        - $ref: "#/components/schemas/CharacterFields"
+        - $ref: "#/components/schemas/CanonCreateStatus"
+    CharacterUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        aliases: { type: array, maxItems: 100, items: { type: string } }
+        summary: { type: string, maxLength: 20000 }
+        personality: { type: object, additionalProperties: true }
+        background: { type: string, maxLength: 50000 }
+        goals: { type: array, maxItems: 100, items: { type: string } }
+        constraints: { type: array, maxItems: 100, items: { type: string } }
+        attributes: { type: object, additionalProperties: true }
+        canon_status: { type: string, enum: [draft, proposed, deprecated] }
+    Character:
+      allOf:
+        - $ref: "#/components/schemas/CanonMetadata"
+        - $ref: "#/components/schemas/CharacterFields"
+    CharacterFields:
       type: object
       required: [name]
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
-        summary: { type: string }
+        aliases: { type: array, maxItems: 100, items: { type: string } }
+        summary: { type: string, maxLength: 20000 }
         personality: { type: object, additionalProperties: true }
-        background: { type: string }
-        goals: { type: array, items: { type: string } }
-        constraints: { type: array, items: { type: string } }
+        background: { type: string, maxLength: 50000 }
+        goals: { type: array, maxItems: 100, items: { type: string } }
+        constraints: { type: array, maxItems: 100, items: { type: string } }
+        attributes: { type: object, additionalProperties: true }
+    LocationCreate:
+      allOf:
+        - $ref: "#/components/schemas/LocationFields"
+        - $ref: "#/components/schemas/CanonCreateStatus"
+    LocationUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 50000 }
+        attributes: { type: object, additionalProperties: true }
+        canon_status: { type: string, enum: [draft, proposed, deprecated] }
+    Location:
+      allOf:
+        - $ref: "#/components/schemas/CanonMetadata"
+        - $ref: "#/components/schemas/LocationFields"
+    LocationFields:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 50000 }
+        attributes: { type: object, additionalProperties: true }
+    FactionCreate:
+      allOf:
+        - $ref: "#/components/schemas/FactionFields"
+        - $ref: "#/components/schemas/CanonCreateStatus"
+    FactionUpdate:
+      allOf:
+        - $ref: "#/components/schemas/LocationUpdate"
+    Faction:
+      allOf:
+        - $ref: "#/components/schemas/CanonMetadata"
+        - $ref: "#/components/schemas/FactionFields"
+    FactionFields:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 50000 }
+        attributes: { type: object, additionalProperties: true }
+    WorldRuleCreate:
+      allOf:
+        - $ref: "#/components/schemas/WorldRuleFields"
+        - $ref: "#/components/schemas/CanonCreateStatus"
+    WorldRuleUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        description: { type: string, minLength: 1, maxLength: 50000 }
+        constraints: { type: object, additionalProperties: true }
+        canon_status: { type: string, enum: [draft, proposed, deprecated] }
+    WorldRule:
+      allOf:
+        - $ref: "#/components/schemas/CanonMetadata"
+        - $ref: "#/components/schemas/WorldRuleFields"
+    WorldRuleFields:
+      type: object
+      required: [title, description]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        description: { type: string, minLength: 1, maxLength: 50000 }
+        constraints: { type: object, additionalProperties: true }
+    CanonCreateStatus:
+      type: object
+      properties:
+        canon_status: { type: string, enum: [draft, proposed, deprecated], default: draft }
+    CanonMetadata:
+      type: object
+      required: [id, novel_id, canon_status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        novel_id: { type: string, format: uuid }
+        canon_status: { type: string, enum: [draft, proposed, canon, deprecated] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     GenerationCreate:
       type: object
       required: [task, instructions]

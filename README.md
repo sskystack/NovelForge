@@ -4,7 +4,7 @@ NovelForge is an open-source workspace for planning and writing long-form fictio
 
 ## Project status
 
-The repository is being built issue by issue from the [engineering backlog](docs/GITHUB_ISSUES.md). NF-001 established the modular-monolith skeleton; NF-002 adds identity, secure sessions and owner-scoped novel management.
+The repository is being built issue by issue from the [engineering backlog](docs/GITHUB_ISSUES.md). NF-001 established the modular-monolith skeleton; NF-002 adds identity and owner-scoped novel management; NF-003 adds novel-scoped characters, locations, factions and world rules.
 
 ## Requirements
 

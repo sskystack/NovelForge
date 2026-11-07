@@ -29,6 +29,8 @@ The executable baseline is in `db/schema.sql`. This document explains the logica
 - `world_rules`
 - `canon_revisions`
 
+NF-003 introduces SQLAlchemy models and an Alembic migration for `characters`, `locations`, `factions` and `world_rules`. Each row stores `novel_id`, `canon_status`, `created_at` and `updated_at`; `(novel_id, id)` is unique to support composite same-novel foreign keys in later domain tables. PostgreSQL uses JSONB for flexible traits and attributes, while SQLite stores equivalent JSON for desktop and tests. The migration adds novel/name or novel/category lookup indexes. Ordinary canon CRUD filters by novel scope and does not permit direct writes to approved records.
+
 ### Plot
 - `outline_nodes`
 - `chapters`
