@@ -1,0 +1,7 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "NovelForge",
+  "identifier": "dev.novelforge.mobile",
+  "build": {"frontendDist": "../web/dist"},
+  "bundle": {"active": true, "targets": ["android"]}
+}

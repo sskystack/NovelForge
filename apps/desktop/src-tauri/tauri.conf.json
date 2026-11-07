@@ -1,0 +1,9 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "NovelForge",
+  "version": "0.1.0",
+  "identifier": "dev.novelforge.desktop",
+  "build": {"frontendDist": "../../web/dist", "devUrl": "http://localhost:5173"},
+  "app": {"withGlobalTauri": false, "security": {"csp": "default-src 'self' http://127.0.0.1:* http://localhost:*; connect-src 'self' http://127.0.0.1:* http://localhost:*"}},
+  "bundle": {"active": true, "targets": ["nsis", "dmg"], "createUpdaterArtifacts": false}
+}

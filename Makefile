@@ -1,4 +1,4 @@
-.PHONY: setup dev-api dev-web test test-api test-web lint typecheck
+.PHONY: setup dev-api dev-web test test-api test-web lint typecheck backup restore
 
 setup:
 	./scripts/setup.sh
@@ -23,3 +23,9 @@ lint:
 
 typecheck:
 	cd apps/web && npm run typecheck
+
+backup:
+	./scripts/backup.sh
+
+restore:
+	./scripts/restore.sh "$(ARCHIVE)"

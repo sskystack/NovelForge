@@ -37,6 +37,9 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .workspace { min-height: 100vh; background: #f7f9f6; color: #1d2920; }
 .topbar { height: 58px; display: flex; justify-content: space-between; align-items: center; padding: 0 22px; border-bottom: 1px solid #dce5dd; background: #fff; }
 .top-actions { display: flex; align-items: center; gap: 12px; }
+.service-indicator { width: 8px; height: 8px; display: inline-block; border-radius: 50%; background: #98a59c; }
+.service-indicator.ready { background: #2c8a4c; }
+.service-indicator.unavailable { background: #c54a42; }
 .user-label { color: #607067; font-size: 13px; }
 .icon-button { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid transparent; background: transparent; color: #5d6c62; }
 .icon-button:hover { border-color: #cbd8cd; background: #f1f6f1; color: #21633b; }

@@ -43,3 +43,7 @@
 3. App upgrades preserve local data; uninstall behavior and data retention are explicitly documented.
 4. No local API listener is reachable from the LAN by default.
 5. Windows, macOS and Android release artifacts are reproducible in CI and smoke-tested.
+
+## Current repository artifacts
+
+The native install path is `scripts/install.sh` or the existing OS-specific setup scripts. `scripts/start-api.sh` applies migrations before binding the API to loopback. `deploy/novelforge.service` and `deploy/launchd.plist.example` provide service templates. Tauri and Android packaging remain opt-in release targets; signing credentials are never stored in the repository.

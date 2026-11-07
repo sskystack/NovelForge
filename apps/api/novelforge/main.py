@@ -72,6 +72,19 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @application.get("/ready", tags=["operations"])
+    def readiness() -> dict[str, str]:
+        try:
+            from sqlalchemy import text
+
+            with database_engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+        except Exception as error:
+            raise Problem(
+                503, "SERVICE_NOT_READY", "Service not ready", "Database is unavailable."
+            ) from error
+        return {"status": "ready"}
+
     application.include_router(identity_router, prefix="/api/v1")
     application.include_router(projects_router, prefix="/api/v1")
     application.include_router(canon_router, prefix="/api/v1")

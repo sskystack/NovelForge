@@ -457,6 +457,8 @@ Publish a repeatable self-hosted deployment.
 - No default production credentials.
 - Health checks detect unavailable dependencies.
 
+NF-018 implementation includes native install/start scripts, service templates, loopback defaults and `/health` plus `/ready` checks. Production credentials remain environment-provided.
+
 ---
 
 ## Agent execution contract
@@ -499,6 +501,8 @@ Ship an installable desktop app using the shared React/Vite UI.
 - Local API binds to loopback only and validates local origins.
 - CI produces installer artifacts.
 
+NF-019 implementation includes a Tauri 2 configuration scaffold reusing the shared Vite build and explicit loopback/CSP packaging settings. Platform signing and sidecar compilation are release-environment steps.
+
 ## NF-020 — Android APK client
 
 **Labels:** frontend, mobile, release, security  
@@ -519,3 +523,5 @@ Provide an installable Android client using the shared API and UI.
 - User can sign in to SaaS or a self-hosted server and access authorized novels.
 - Tokens are not stored in plaintext preferences or logs.
 - Build pipeline produces APK artifact and smoke tests pass.
+
+NF-020 implementation includes the Android Tauri configuration scaffold and mobile security/data-handling requirements in `apps/mobile/README.md`; APK signing/build execution requires the Android toolchain and CI secrets.

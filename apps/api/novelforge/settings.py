@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+psycopg://novelforge:novelforge-local-only@localhost:5432/novelforge"
     )
+    app_env: str = "development"
     session_cookie_name: str = "novelforge_session"
     csrf_cookie_name: str = "novelforge_csrf"
     session_ttl_hours: int = 336
@@ -24,6 +26,17 @@ class Settings(BaseSettings):
     ai_base_url: str = ""
     ai_api_key: str = ""
     ai_timeout_seconds: float = 30.0
+
+    @model_validator(mode="after")
+    def validate_production_settings(self):
+        if self.app_env.lower() == "production":
+            if "novelforge-local-only" in self.database_url:
+                raise ValueError("DATABASE_URL must use a non-default production credential.")
+            if not self.session_cookie_secure:
+                raise ValueError("SESSION_COOKIE_SECURE must be enabled in production.")
+            if not self.cors_origins.strip() or "localhost" in self.cors_origins:
+                raise ValueError("CORS_ORIGINS must contain only deployed origins in production.")
+        return self
 
     @property
     def allowed_origins(self) -> list[str]:
