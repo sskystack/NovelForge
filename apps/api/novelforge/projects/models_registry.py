@@ -12,6 +12,7 @@ from novelforge.canon.models import (
     WorldRule,
 )
 from novelforge.identity.models import AuthSession, User
+from novelforge.knowledge.models import KnowledgeChunk, KnowledgeDocument
 from novelforge.planning.models import Chapter, ChapterVersion, OutlineNode
 from novelforge.projects.models import Novel
 
@@ -24,6 +25,8 @@ __all__ = [
     "Chapter",
     "ChapterVersion",
     "Faction",
+    "KnowledgeChunk",
+    "KnowledgeDocument",
     "Location",
     "Novel",
     "OutlineNode",

@@ -129,6 +129,8 @@ flowchart TB
 7. Enqueue re-index jobs for affected source versions.
 8. Mark prior chunks inactive only after new embeddings are successfully written; maintain rollback/retry path.
 
+Knowledge documents are immutable by source revision identity. Their content hash and chunker version make retries idempotent; a failed embedding run records failure while leaving the prior revision's active chunks searchable.
+
 ## 7. Context precedence
 
 Use explicit source classes, not a single flat similarity score:

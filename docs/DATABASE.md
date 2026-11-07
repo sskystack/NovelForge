@@ -65,6 +65,8 @@ Any accepted change to canon creates a `canon_revisions` row with entity type, e
 
 NF-008 adds `canon_proposals`, scoped to a novel and carrying proposed JSON, rationale, creator, review status and reviewer timestamps. `canon_revisions` is append-only at the application layer, uniquely numbered per novel/entity, and stores the actor, reason, before/after snapshots and optional originating proposal. Approval updates the canon row, proposal decision and revision together; restore appends a new revision rather than rewriting history.
 
+NF-010 adds `knowledge_documents` keyed by novel, source type/ID and source revision, with a content hash and chunker version. `knowledge_chunks` stores text, token count, embedding, source revision metadata and active state. A composite `(novel_id, document_id)` foreign key prevents cross-novel chunk ownership. Re-ingestion first creates replacement chunks and only retires the previous active set after embeddings succeed in the same transaction.
+
 ### Chapter version
 `chapters` is the current logical chapter record. `chapter_versions` stores immutable content snapshots and editor format. Autosave uses `version_number` or an ETag to prevent lost updates.
 
