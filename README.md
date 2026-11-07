@@ -4,7 +4,7 @@ NovelForge is an open-source workspace for planning and writing long-form fictio
 
 ## Project status
 
-The repository is being built issue by issue from the [engineering backlog](docs/GITHUB_ISSUES.md). NF-001 provides the modular-monolith skeleton and local development tooling; product modules are not implemented yet.
+The repository is being built issue by issue from the [engineering backlog](docs/GITHUB_ISSUES.md). NF-001 established the modular-monolith skeleton; NF-002 adds identity, secure sessions and owner-scoped novel management.
 
 ## Requirements
 
@@ -32,6 +32,7 @@ PostgreSQL installation: on macOS, `brew install postgresql@16` and `brew instal
    ```
 
 The scripts validate prerequisites and install locked API and web dependencies. They do not install or configure PostgreSQL for you.
+For local HTTP development, keep `SESSION_COOKIE_SECURE=false`; set it to `true` for deployments served over HTTPS.
 
 ## Run and test
 
@@ -50,6 +51,12 @@ uv run --directory apps/api uvicorn novelforge.main:app --reload
 uv run --directory apps/api pytest
 cd apps/web && npm run dev
 cd apps/web && npm test
+```
+
+After PostgreSQL is running and `.env` is configured, apply database migrations with:
+
+```sh
+uv run --directory apps/api alembic -c alembic.ini upgrade head
 ```
 
 ## Architecture and contracts

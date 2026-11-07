@@ -1,0 +1,1 @@
+"""Novel project management module."""

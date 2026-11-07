@@ -104,6 +104,8 @@ novelforge/
 5. Configure a mock provider for tests.
 6. Build desktop installers through Tauri and Android APK through the Android toolchain.
 
+For server development, copy `.env.example` to `.env`, start PostgreSQL 16 with pgvector, then run `uv run --directory apps/api alembic -c alembic.ini upgrade head`. Set `SESSION_COOKIE_SECURE=false` only for plain HTTP localhost development; shared deployments must use HTTPS and set it to `true`.
+
 ## 6. CI gates
 
 - format/lint

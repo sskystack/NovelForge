@@ -8,6 +8,61 @@ servers:
 security:
   - sessionCookie: []
 paths:
+  /auth/register:
+    post:
+      security: []
+      summary: Register an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreate"
+      responses:
+        "201":
+          description: Account created; registration does not start a session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+  /auth/login:
+    post:
+      security: []
+      summary: Create a browser session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserLogin"
+      responses:
+        "200":
+          description: Logged in; sets HttpOnly session and readable CSRF cookies
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+  /auth/logout:
+    post:
+      summary: Revoke the current session
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Session revoked and cookies cleared
+        "403":
+          $ref: "#/components/responses/Problem"
   /auth/me:
     get:
       summary: Get current user
@@ -19,10 +74,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
         "401":
-          $ref: "#/components/responses/Unauthorized"
+          $ref: "#/components/responses/Problem"
   /novels:
     get:
       summary: List novels accessible to current user
+      parameters:
+        - in: query
+          name: include_archived
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: Novel list
@@ -34,6 +93,8 @@ paths:
                   $ref: "#/components/schemas/Novel"
     post:
       summary: Create novel
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
       requestBody:
         required: true
         content:
@@ -47,6 +108,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Novel"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
   /novels/{novel_id}:
     parameters:
       - $ref: "#/components/parameters/NovelId"
@@ -63,16 +128,14 @@ paths:
           $ref: "#/components/responses/NotFound"
     patch:
       summary: Update novel
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                title: { type: string, minLength: 1, maxLength: 200 }
-                premise: { type: string }
-                writing_preferences: { type: object, additionalProperties: true }
+              $ref: "#/components/schemas/NovelUpdate"
       responses:
         "200":
           description: Updated
@@ -80,6 +143,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Novel"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    delete:
+      summary: Archive a novel without deleting its data
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Novel archived
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
   /novels/{novel_id}/characters:
     parameters:
       - $ref: "#/components/parameters/NovelId"
@@ -180,9 +258,20 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string }
   responses:
     Unauthorized:
       description: Authentication required
+    Problem:
+      description: Problem Details error
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
     NotFound:
       description: Resource not found
   schemas:
@@ -193,6 +282,30 @@ components:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
         display_name: { type: string }
+        created_at: { type: string, format: date-time }
+    UserCreate:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 12, maxLength: 128 }
+        display_name: { type: string, maxLength: 120 }
+    UserLogin:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1, maxLength: 128 }
+    Problem:
+      type: object
+      required: [type, title, status, detail, code, request_id]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        code: { type: string }
+        request_id: { type: string }
     Novel:
       type: object
       required: [id, title, language, status]
@@ -202,7 +315,11 @@ components:
         language: { type: string }
         premise: { type: string }
         status: { type: string, enum: [active, archived] }
+        genre: { type: array, items: { type: string } }
+        writing_preferences: { type: object, additionalProperties: true }
         created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        archived_at: { type: [string, "null"], format: date-time }
     NovelCreate:
       type: object
       required: [title]
@@ -214,6 +331,16 @@ components:
           items: { type: string }
         premise: { type: string }
         writing_preferences: { type: object, additionalProperties: true }
+    NovelUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        language: { type: string, minLength: 2, maxLength: 32 }
+        genre: { type: array, items: { type: string } }
+        premise: { type: string, maxLength: 20000 }
+        writing_preferences: { type: object, additionalProperties: true }
+        status: { type: string, enum: [active, archived] }
     CharacterCreate:
       type: object
       required: [name]

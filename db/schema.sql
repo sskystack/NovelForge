@@ -15,11 +15,20 @@ CREATE TYPE foreshadowing_status AS ENUM ('open', 'hinted', 'resolved', 'abandon
 CREATE TABLE users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text NOT NULL UNIQUE,
-  password_hash text,
+  password_hash text NOT NULL,
   display_name text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE auth_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash char(64) NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_auth_sessions_user_expires ON auth_sessions(user_id, expires_at);
 
 CREATE TABLE novels (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

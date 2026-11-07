@@ -2,8 +2,10 @@
 
 Base path: `/api/v1`  
 Format: JSON, UTF-8  
-Authentication: secure session cookie for browser; bearer token for API clients (future).  
+Authentication: opaque server-side session in an `HttpOnly`, `SameSite=Strict` cookie; bearer token for API clients (future).
 All endpoints are scoped to the authenticated user and novel membership.
+
+Browser mutations authenticated by cookies require `X-CSRF-Token`, matching the readable `novelforge_csrf` cookie. The session cookie is named `novelforge_session`, contains a random token, and is backed by a database row containing only its SHA-256 hash. Set `SESSION_COOKIE_SECURE=true` whenever the API is served over HTTPS. Auth endpoints and validation failures use `application/problem+json` with a request ID.
 
 ## 1. Common conventions
 
@@ -32,7 +34,7 @@ All endpoints are scoped to the authenticated user and novel membership.
 ### Auth
 - `POST /auth/register`
 - `POST /auth/login`
-- `POST /auth/logout`
+- `POST /auth/logout` (requires `X-CSRF-Token` while logged in)
 - `GET /auth/me`
 
 ### Novels
@@ -43,6 +45,10 @@ All endpoints are scoped to the authenticated user and novel membership.
 - `DELETE /novels/{novel_id}` (archive, not hard delete)
 - `GET /novels/{novel_id}/export`
 - `POST /novels/import`
+
+Novel endpoints require an authenticated owner. Requests for a novel owned by another user return `404` so its existence is not disclosed. The list hides archived novels by default; `GET /novels?include_archived=true` includes the current user's archived projects. `PATCH /novels/{novel_id}` with `{"status":"active"}` restores an archived novel. Create, update and archive requests require the CSRF header.
+
+Registration accepts `email`, `password` (12-128 characters) and optional `display_name`; email is normalized to lowercase. Registration does not create a login session. Login returns the current user and sets the session and CSRF cookies. Logout revokes the database session and clears both cookies.
 
 ### Canon
 - `GET|POST /novels/{novel_id}/characters`
