@@ -15,12 +15,19 @@ def get_settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
+def get_session_token(request: Request, settings: Settings) -> str:
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return request.cookies.get(settings.session_cookie_name, "")
+
+
 def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> User:
-    token = request.cookies.get(settings.session_cookie_name)
+    token = get_session_token(request, settings)
     if not token:
         raise Problem(401, "AUTHENTICATION_REQUIRED", "Authentication required", "Please log in.")
 
@@ -39,6 +46,9 @@ def get_current_user(
 
 
 def require_csrf(request: Request, settings: Settings = Depends(get_settings)) -> None:
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer ") and authorization[7:].strip():
+        return
     session_token = request.cookies.get(settings.session_cookie_name)
     if not session_token:
         return

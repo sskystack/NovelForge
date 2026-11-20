@@ -1,11 +1,13 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from novelforge.database import get_db
+from novelforge.errors import Problem
 from novelforge.identity.dependencies import get_current_user, require_csrf
 from novelforge.identity.models import User
+from novelforge.projects.archive import export_novel, import_novel
 from novelforge.projects.models import Novel
 from novelforge.projects.schemas import NovelCreate, NovelRead, NovelUpdate
 from novelforge.projects.service import (
@@ -17,6 +19,42 @@ from novelforge.projects.service import (
 )
 
 router = APIRouter(prefix="/novels", tags=["projects"])
+
+
+@router.get("/{novel_id}/export")
+def get_novel_export(
+    novel_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    data = export_novel(db, user, novel_id)
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="novelforge-project.zip"'},
+    )
+
+
+@router.post("/import", response_model=NovelRead, status_code=status.HTTP_201_CREATED)
+async def post_novel_import(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _csrf: None = Depends(require_csrf),
+) -> Novel:
+    if request.headers.get("content-type", "").split(";", 1)[0].strip() not in {
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/octet-stream",
+    }:
+        raise Problem(
+            415,
+            "UNSUPPORTED_ARCHIVE_TYPE",
+            "Unsupported archive type",
+            "Upload a ZIP project archive.",
+        )
+    data = await request.body()
+    return import_novel(db, user, data)
 
 
 @router.get("", response_model=list[NovelRead])

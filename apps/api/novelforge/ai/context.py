@@ -26,8 +26,9 @@ def _estimate_tokens(text: str) -> int:
 def _fit_text(text: str, budget: int) -> str:
     if budget <= 0:
         return ""
-    tokens = re.findall(r"[\u4e00-\u9fff]|[A-Za-z0-9]+|[^\w\s]", text)
-    return "".join(tokens[:budget]) if len(tokens) > budget else text
+    tokens = list(re.finditer(r"[\u4e00-\u9fff]|[A-Za-z0-9]+|[^\w\s]", text))
+    # Slice the original text so English spaces and paragraph boundaries survive truncation.
+    return text[:tokens[budget - 1].end()] if len(tokens) > budget else text
 
 
 def compile_context(

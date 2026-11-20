@@ -1,10 +1,19 @@
 import json
+import ssl
 from urllib import request
 
 import pytest
 
 from novelforge.ai.openai_compatible import OpenAICompatibleProvider
 from novelforge.ai.providers import ChatMessage, MockProvider, ProviderError
+
+
+def test_provider_uses_bundled_ca_and_preserves_tls_verification(monkeypatch):
+    monkeypatch.delenv("SSL_CERT_FILE", raising=False)
+    provider = OpenAICompatibleProvider("https://example.test", "unused")
+    assert provider.ssl_context.verify_mode == ssl.CERT_REQUIRED
+    assert provider.ssl_context.check_hostname is True
+    assert provider.ssl_context.cert_store_stats()["x509_ca"] > 0
 
 
 def test_mock_provider_is_deterministic_and_normalizes_tools() -> None:

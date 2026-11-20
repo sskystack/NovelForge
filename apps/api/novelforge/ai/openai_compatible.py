@@ -1,6 +1,10 @@
 import json
+import os
+import ssl
 from collections.abc import Iterator, Sequence
 from urllib import error, request
+
+import certifi
 
 from novelforge.ai.providers import (
     ChatMessage,
@@ -18,6 +22,13 @@ class OpenAICompatibleProvider:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout_seconds = timeout_seconds
+        # Frozen applications cannot rely on the build machine's OpenSSL CA path.
+        try:
+            self.ssl_context = ssl.create_default_context(
+                cafile=os.environ.get("SSL_CERT_FILE") or certifi.where()
+            )
+        except (OSError, ssl.SSLError) as exc:
+            raise ProviderError("AI provider TLS configuration is invalid") from exc
 
     def _request(self, endpoint: str, body: dict) -> request.Request:
         return request.Request(
@@ -44,7 +55,9 @@ class OpenAICompatibleProvider:
             }
         try:
             with request.urlopen(
-                self._request("chat/completions", body), timeout=self.timeout_seconds
+                self._request("chat/completions", body),
+                timeout=self.timeout_seconds,
+                context=self.ssl_context,
             ) as response:
                 data = json.load(response)
         except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
@@ -59,6 +72,10 @@ class OpenAICompatibleProvider:
                 for call in message.get("tool_calls", [])
             )
             content = message.get("content") or ""
+            if not isinstance(content, str) or any(
+                not isinstance(call.arguments, dict) for call in calls
+            ):
+                raise TypeError("invalid message content or tool arguments")
             structured = json.loads(content) if response_schema is not None else None
             if structured is not None and not isinstance(structured, dict):
                 raise TypeError("structured output must be an object")
@@ -86,7 +103,9 @@ class OpenAICompatibleProvider:
         finish_reason = "stop"
         try:
             with request.urlopen(
-                self._request("chat/completions", body), timeout=self.timeout_seconds
+                self._request("chat/completions", body),
+                timeout=self.timeout_seconds,
+                context=self.ssl_context,
             ) as response:
                 for line in response:
                     if not line.startswith(b"data:"):
@@ -129,6 +148,7 @@ class OpenAICompatibleProvider:
             with request.urlopen(
                 self._request("embeddings", {"model": model, "input": list(texts)}),
                 timeout=self.timeout_seconds,
+                context=self.ssl_context,
             ) as response:
                 data = json.load(response)
             vectors = [

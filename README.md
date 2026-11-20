@@ -4,20 +4,20 @@
 
 NovelForge is an open-source fiction workspace that keeps story canon author-controlled and versioned. The product direction is **Desktop-Local First**: Windows and macOS are the first release targets, with project data stored on the user's device.
 
-> **Development status:** the repository has backend and web foundations through NF-012, but it is not yet an installable desktop application. NF-010 to NF-012 have implementation gaps recorded in the [roadmap](docs/ROADMAP.md). There is no Tauri shell, packaged Python sidecar, production SQLite profile, FTS5 index, or installer yet.
+> **Development status (2026-11-20):** the recovered Tauri desktop source now builds a macOS Apple Silicon 0.1.1 DMG with a frozen Python sidecar and versioned SQLite initialization. Native UI and packaged-service workflows have been checked. FTS5, a complete agent execution loop, and MCP integration remain follow-up work. The [roadmap](docs/ROADMAP.md) retains the earlier audit history.
 
 ## Current status
 
 - Implemented foundations: identity and novel ownership, canon CRUD and approval history, outlines and chapters, immutable chapter versions, connected web editor, provider interfaces, knowledge ingestion/search prototypes, and a context compiler.
-- Verified locally at the latest audited commit (`27360af`): 57 API tests passed; latest GitHub CI passed. These results do not establish desktop packaging or full NF-010 to NF-012 acceptance.
+- Current local checks: 83 API tests, 19 frontend tests, and 12 packaged-service workflow checks passed. Native UI checks cover authentication, Chinese projects and chapters, editing, format conversion, generation previews and acceptance, version restoration, analysis, persistence across restart, and logout. Model tests use deterministic mocks and a local protocol stub, without paid model requests.
 - The audit found no GitHub Issues before synchronization; tracking Issues #1–#10 are now open for NF-013–NF-022. Their labels and deferred status are part of the current evidence; see [ROADMAP.md](docs/ROADMAP.md).
-- Supported today: developer-run API and web app. Planned first-class installs: Windows x64 EXE and macOS DMG. Android and remote SaaS/self-hosting are deferred.
+- Verified artifact: macOS Apple Silicon DMG with ad-hoc signing. Developer ID signing and notarization are not configured. Windows packaging is retained but was not exercised on a Windows host in this work. Android and remote SaaS/self-hosting remain deferred.
 
 ## Desktop target
 
 The intended desktop stack is React + Vite, Tauri 2, a bundled FastAPI Python sidecar, SQLAlchemy/Alembic, and SQLite in the per-user application data directory. SQLite FTS5 is the planned lexical index. Model API credentials will be configured locally and kept out of browser bundles and logs. The sidecar must bind only to loopback, use local request authorization, start and stop with the desktop app, and preserve user data through upgrades.
 
-This is a target architecture, not a claim about current functionality. Vector retrieval remains behind an adapter. The current prototype stores embeddings as JSON and computes cosine scores in Python; FTS5 and packaged vector options require an explicit design/test issue before implementation.
+The desktop runtime path is implemented; see [Desktop README](apps/desktop/README.md) for builds and local configuration. Retrieval remains a prototype: embeddings are stored as JSON and cosine scores are computed in Python. FTS5 and a packaged vector index still require implementation and evaluation.
 
 ## Developer setup today
 

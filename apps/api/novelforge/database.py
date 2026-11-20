@@ -27,6 +27,7 @@ def create_database_engine(database_url: str) -> Engine:
         def enable_foreign_keys(connection, _record) -> None:
             cursor = connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
 
     return engine

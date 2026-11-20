@@ -1,0 +1,19 @@
+{
+  "name": "@novelforge/desktop",
+  "private": true,
+  "version": "0.1.1",
+  "scripts": {
+    "dev": "npm run sidecar && tauri dev",
+    "build": "npm --prefix ../web run build",
+    "tauri": "tauri",
+    "tauri:build": "npm run sidecar && tauri build",
+    "tauri:check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "sidecar": "uv run --project ../api --extra dev python ../../scripts/build_sidecar.py"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4"
+  }
+}

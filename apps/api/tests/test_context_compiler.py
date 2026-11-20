@@ -4,9 +4,18 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from test_planning import create_chapter, create_novel, register_and_login
 
-from novelforge.ai.context import compile_context
+from novelforge.ai.context import _fit_text, compile_context
 from novelforge.canon.models import CanonStatus, Character, CharacterState, StoryEvent, WorldRule
 from novelforge.planning.models import Chapter
+
+
+def test_context_truncation_preserves_whitespace_and_paragraphs():
+    assert (
+        _fit_text("First sentence\n\nSecond paragraph continues", 3) == "First sentence\n\nSecond"
+    )
+    assert _fit_text("中文正文", 2) == "中文"
+    assert _fit_text("unchanged text", 100) == "unchanged text"
+    assert _fit_text("content", 0) == ""
 
 
 def test_context_compiler_scopes_sources_honors_story_time_and_budget(

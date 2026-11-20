@@ -1,5 +1,9 @@
 """Import domain models so Alembic sees the complete metadata registry."""
 
+from novelforge.ai.analysis_models import ChapterAnalysis
+from novelforge.ai.analysis_proposal_models import AnalysisProposal
+from novelforge.ai.generation_models import GenerationSession
+from novelforge.ai.tool_models import ToolCallAudit
 from novelforge.canon.models import (
     CanonProposal,
     CanonRevision,
@@ -11,6 +15,7 @@ from novelforge.canon.models import (
     StoryEvent,
     WorldRule,
 )
+from novelforge.consistency.models import ConsistencyIssue
 from novelforge.identity.models import AuthSession, User
 from novelforge.knowledge.models import KnowledgeChunk, KnowledgeDocument
 from novelforge.planning.models import Chapter, ChapterVersion, OutlineNode
@@ -27,6 +32,11 @@ __all__ = [
     "Faction",
     "KnowledgeChunk",
     "KnowledgeDocument",
+    "ToolCallAudit",
+    "ConsistencyIssue",
+    "GenerationSession",
+    "ChapterAnalysis",
+    "AnalysisProposal",
     "Location",
     "Novel",
     "OutlineNode",

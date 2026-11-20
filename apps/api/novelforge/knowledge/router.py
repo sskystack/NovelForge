@@ -39,6 +39,7 @@ def get_knowledge_search(
             novel_id,
             query,
             embedding_provider=provider,
+            embedding_model=settings.ai_embedding_model,
             visibility=(
                 (KnowledgeVisibility.APPROVED, KnowledgeVisibility.DRAFT)
                 if include_drafts

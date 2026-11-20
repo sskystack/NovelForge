@@ -7,6 +7,7 @@ from novelforge.database import get_db
 from novelforge.errors import Problem
 from novelforge.identity.dependencies import (
     get_current_user,
+    get_session_token,
     get_settings,
     require_allowed_origin,
     require_csrf,
@@ -37,7 +38,7 @@ def set_session_cookies(
         max_age=max_age,
         httponly=True,
         secure=settings.session_cookie_secure,
-        samesite="strict",
+        samesite=settings.session_cookie_samesite.lower(),
         path="/",
     )
     response.set_cookie(
@@ -46,7 +47,7 @@ def set_session_cookies(
         max_age=max_age,
         httponly=False,
         secure=settings.session_cookie_secure,
-        samesite="strict",
+        samesite=settings.session_cookie_samesite.lower(),
         path="/",
     )
 
@@ -61,7 +62,7 @@ def clear_session_cookies(response: Response, settings: Settings) -> None:
             path="/",
             secure=settings.session_cookie_secure,
             httponly=http_only,
-            samesite="strict",
+            samesite=settings.session_cookie_samesite.lower(),
         )
 
 
@@ -106,7 +107,7 @@ def login(
     if user is None:
         raise Problem(401, "INVALID_CREDENTIALS", "Login failed", "Email or password is incorrect.")
 
-    old_token = request.cookies.get(settings.session_cookie_name)
+    old_token = get_session_token(request, settings)
     if old_token:
         db.execute(
             delete(AuthSession).where(AuthSession.token_hash == hash_session_token(old_token))
@@ -114,6 +115,10 @@ def login(
         db.commit()
     session_token, csrf_token, _session = create_session(db, user, settings.session_ttl_hours)
     set_session_cookies(response, settings, session_token, csrf_token)
+    if request.headers.get("origin") in {
+        "tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"
+    }:
+        response.headers["X-NovelForge-Session"] = session_token
     response.headers["Cache-Control"] = "no-store"
     return user
 
@@ -127,7 +132,7 @@ def logout(
     _origin: None = Depends(require_allowed_origin),
     _csrf: None = Depends(require_csrf),
 ) -> Response:
-    token = request.cookies.get(settings.session_cookie_name)
+    token = get_session_token(request, settings)
     if token:
         db.execute(delete(AuthSession).where(AuthSession.token_hash == hash_session_token(token)))
         db.commit()
