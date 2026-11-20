@@ -1,0 +1,15 @@
+[Unit]
+Description=NovelForge API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/novelforge
+EnvironmentFile=/opt/novelforge/.env
+ExecStart=/opt/novelforge/scripts/start-api.sh
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

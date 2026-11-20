@@ -78,6 +78,16 @@ NF-010 adds `knowledge_documents` keyed by novel, source type/ID and source revi
 
 NF-011's current prototype filters `novel_id`, active chunks, ready documents and visibility before ranking. It computes lexical/cosine ranks in Python and combines them with reciprocal rank fusion; it does not use FTS5 or pgvector queries. NF-021 will define and test the local search adapter.
 
+NF-013 adds `tool_call_audits`, a novel-scoped append-only record of tool name, generation ID, outcome, duration and bounded input summary. It is separate from canonical data and cannot grant a tool write access by itself.
+
+NF-014 adds `generation_sessions`, storing task profile, provider/model metadata, bounded context snapshot, generated preview, expected chapter version, status and failure details. A session is accepted separately from generation so preview never mutates manuscript content.
+
+NF-015 adds `chapter_analyses`, unique per novel and immutable chapter version, and `analysis_proposals`, fingerprinted per version/type to make reprocessing idempotent. Candidates contain evidence and review state; approval and rejection timestamps identify the human decision. Analysis rows never update canon automatically.
+
+NF-016 does not add a table. Export includes relational rows and excludes embeddings; import assigns a new novel and entity IDs, resets imported knowledge indexing to pending/inactive, and preserves the original archive as an immutable source.
+
+NF-017 adds `consistency_issues` with novel scope, deterministic fingerprint, issue type/severity, evidence JSON and human resolution status. Fingerprints make repeated checks idempotent.
+
 ### Chapter version
 `chapters` is the current logical chapter record. `chapter_versions` stores immutable content snapshots and editor format. Autosave uses `version_number` or an ETag to prevent lost updates.
 

@@ -469,6 +469,8 @@ Publish a repeatable self-hosted deployment.
 - No default production credentials.
 - Health checks detect unavailable dependencies.
 
+NF-018 implementation includes native install/start scripts, service templates, loopback defaults and `/health` plus `/ready` checks. Production credentials remain environment-provided.
+
 ---
 
 ## NF-019 — Tauri desktop shell and Windows/macOS installers
