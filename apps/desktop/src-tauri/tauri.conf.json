@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "NovelForge",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "identifier": "dev.novelforge.desktop",
   "build": {"beforeBuildCommand": "npm --prefix ../web run build", "beforeDevCommand": "npm --prefix ../web run dev", "frontendDist": "../../web/dist", "devUrl": "http://localhost:5173"},
   "app": {"withGlobalTauri": false, "windows": [{"label": "main", "title": "NovelForge", "width": 1440, "height": 900, "minWidth": 900, "minHeight": 600}], "security": {"csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; img-src 'self' data:"}},
-  "bundle": {"active": true, "targets": ["nsis", "dmg"], "externalBin": ["binaries/novelforge-api"], "createUpdaterArtifacts": false, "macOS": {"minimumSystemVersion": "11.0", "signingIdentity": "-"}}
+  "bundle": {"active": true, "targets": ["dmg"], "externalBin": ["binaries/novelforge-api"], "createUpdaterArtifacts": false, "macOS": {"minimumSystemVersion": "11.0", "signingIdentity": "-"}}
 }

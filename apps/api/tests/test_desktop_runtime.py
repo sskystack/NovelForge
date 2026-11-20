@@ -119,7 +119,7 @@ def test_fresh_desktop_database_is_versioned_and_restart_is_idempotent(tmp_path,
     assert initialize_database(path) is None
     with sqlite3.connect(path) as db:
         assert (
-            db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20261107_0012"
+            db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20261120_0013"
         )
         assert db.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
 

@@ -28,7 +28,7 @@ def _fit_text(text: str, budget: int) -> str:
         return ""
     tokens = list(re.finditer(r"[\u4e00-\u9fff]|[A-Za-z0-9]+|[^\w\s]", text))
     # Slice the original text so English spaces and paragraph boundaries survive truncation.
-    return text[:tokens[budget - 1].end()] if len(tokens) > budget else text
+    return text[: tokens[budget - 1].end()] if len(tokens) > budget else text
 
 
 def compile_context(
@@ -40,6 +40,8 @@ def compile_context(
     story_order: Decimal | None = None,
     query: str | None = None,
     include_recent_chapters: int = 3,
+    embedding_provider=None,
+    embedding_model: str = "mock-embedding",
 ) -> dict:
     if token_budget < 100 or token_budget > 100_000:
         raise Problem(
@@ -175,8 +177,41 @@ def compile_context(
                 {"story_order": str(event.story_order)},
             )
 
+    recent_query = select(Chapter).where(Chapter.novel_id == novel_id, Chapter.id != chapter_id)
+    if chapter.chapter_number is not None:
+        recent_query = recent_query.where(Chapter.chapter_number < chapter.chapter_number)
+        recent_query = recent_query.order_by(Chapter.chapter_number.desc(), Chapter.id)
+    elif story_order is not None:
+        recent_query = recent_query.where(Chapter.story_order < story_order)
+        recent_query = recent_query.order_by(Chapter.story_order.desc(), Chapter.id)
+    else:
+        recent_query = recent_query.where(Chapter.created_at < chapter.created_at)
+        recent_query = recent_query.order_by(Chapter.created_at.desc(), Chapter.id)
+    for recent in db.scalars(recent_query.limit(max(0, min(include_recent_chapters, 10)))).all():
+        recent_version = db.scalar(
+            select(ChapterVersion).where(
+                ChapterVersion.novel_id == novel_id,
+                ChapterVersion.chapter_id == recent.id,
+                ChapterVersion.version_number == recent.current_version,
+            )
+        )
+        add(
+            "recent_chapter",
+            recent.id,
+            f"{recent.title}\n{recent.summary}\n"
+            f"{recent_version.plain_text if recent_version else ''}",
+            {"version_number": recent.current_version},
+        )
+
     if query:
-        for hit in search_knowledge(db, novel_id, query, limit=10):
+        for hit in search_knowledge(
+            db,
+            novel_id,
+            query,
+            limit=10,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+        ):
             add(
                 "retrieved_prose",
                 UUID(hit["chunk_id"]),
@@ -204,6 +239,7 @@ def compile_context(
         "character_state": 6,
         "story_event": 7,
         "chapter_version": 8,
+        "recent_chapter": 9,
         "retrieved_prose": 9,
     }
     sections.sort(

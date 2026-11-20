@@ -1,223 +1,69 @@
-# NovelForge — Agent, RAG and Context Compiler Specification
+# NovelForge — local Agent, RAG and MCP runtime (0.2.0)
 
-## 1. Design goals
+This describes executable behavior, not a proposed distributed-agent architecture. The runtime remains a FastAPI modular monolith with SQLite and a packaged sidecar. No Redis, Docker, PostgreSQL server, paid model or separate agent framework is required by the desktop profile.
 
-- Ground generation in author-approved facts.
-- Preserve provenance for retrieved information.
-- Prevent cross-novel retrieval.
-- Distinguish story facts, draft ideas and model inferences.
-- Make tool operations typed, auditable and permissioned.
-- Never let a model silently mutate canon.
+## 1. Durable run state
 
-## 2. Memory layers
+`POST /api/v1/novels/{novel_id}/agent/runs` persists a queued run and returns HTTP 202 before execution. An application-owned asyncio task drives the model → tools → observations → model loop. This differs from the older `/ai/generations` and `/ai/analysis` preview APIs, which still execute synchronously despite their historical 202 response code.
 
-### Canonical Memory
-Structured, author-approved facts:
-- characters and current states
-- world rules
-- locations and factions
-- relationships
-- approved story events
-- approved timeline facts
+Each run belongs to one authenticated owner and novel. Its persisted transcript records assistant tool calls and matching `tool_call_id` observations. Ordered model/tool steps retain status, arguments, argument SHA-256, results and errors. Root `sources` holds exact passages, document/chunk IDs and revisions. API responses omit private model/MCP configuration fingerprints.
 
-### Narrative Memory
-What has happened:
-- chapter text
-- chapter summaries
-- events and scene summaries
-- resolved and unresolved foreshadowing
+States: queued, running, waiting_approval, succeeded, failed, cancelled, interrupted. Multiple tool calls in one model turn are observed before another model request. Reused/duplicate call IDs fail closed. The offline mock performs one outline read and finishes after its observation; it never fabricates a write request.
 
-### Working Memory
-Task-specific context:
-- current chapter and outline
-- current user instruction
-- relevant character states
-- relevant world rules
-- recent chapters
-- retrieved source passages
-- unresolved consistency warnings
+Defaults: 6 model rounds, 12 tool calls, 60 active seconds and 12,000 estimated aggregate tokens; at most four active tasks per sidecar. Budgets are checked before each model/tool operation. The provider receives a remaining output allowance as `max_tokens`; reported and locally estimated usage is checked afterwards. The Chinese/Latin estimator is not a model tokenizer or a vendor billing guarantee. A server refusing the output-limit field fails the run rather than receiving an unlimited retry.
 
-Working Memory is assembled per generation; it is not treated as durable truth.
+Cancellation persists state and cancels the waiting task. Network model/embedding requests run in daemon threads without domain-write permissions. An already issued urllib request cannot be forcibly stopped: it may continue to its network timeout. Its late result is discarded and cannot trigger subsequent tool writes. Local SQLite handlers use a statement progress deadline; this does not preempt arbitrary Python code.
 
-## 3. Context Compiler pipeline
+Shutdown cancels active tasks and records interrupted state. Startup marks leftover queued/running runs interrupted without replaying them. Waiting approvals remain inspectable and can be decided after restart. There is no general crash-resume/retry API. If a write completed but recording its result was interrupted, the run is explicitly interrupted and the write is never automatically retried.
 
-1. Authenticate user and resolve novel scope.
-2. Load task, chapter, outline and writing preferences.
-3. Fetch canonical structured facts using typed queries.
-4. Determine requested story-time position.
-5. Retrieve narrative chunks with hard filters:
-   - `novel_id`
-   - `is_active`
-   - source visibility/status
-   - authorized membership
-6. Run lexical and vector retrieval independently.
-7. Merge with reciprocal-rank fusion or calibrated scoring.
-8. Optionally rerank.
-9. Detect contradictory approved facts.
-10. Apply precedence and temporal validity.
-11. Deduplicate and compress without removing source IDs.
-12. Enforce token budget.
-13. Return context packet with citations, warnings and trace metadata.
+## 2. Tools and author control
 
-### Context packet
+| Permission | Tools | Actual effect |
+| --- | --- | --- |
+| Read | read_characters, read_worldbuilding, read_timeline, read_outline, search_chapters | Read the authorized novel; structured canon reads use approved facts |
+| Draft | draft_outline, draft_summary | Return JSON previews; do not save outlines, summaries or manuscript text |
+| Propose | propose_canon | After author decision, create a pending canon proposal only |
 
-```json
-{
-  "novel_id": "uuid",
-  "task": "draft_chapter",
-  "story_order": 20,
-  "canon_facts": [],
-  "character_states": [],
-  "retrieved_passages": [],
-  "outline": {},
-  "open_foreshadowing": [],
-  "warnings": [],
-  "sources": [],
-  "token_budget": 12000
-}
-```
+The model receives standard OpenAI function-tool envelopes. Built-in arguments use Pydantic schemas with `extra=forbid`, and are validated again at execution. Canon proposed_data is open-ended JSON, so the adapter does not claim universal OpenAI `strict:true` support. Canon service validation still applies. Results are bounded structured JSON, not universal Pydantic output schemas.
 
-The token budget is configurable per model profile. Do not assume every model uses the same tokenizer.
+A write request is persisted with an immutable step and argument hash. The authenticated author decides that exact step through a CSRF-protected endpoint accepting only `approve`, never replacement arguments or a model approval flag. A conditional update records one decision. The step is marked running before execution; duplicate clicks/retries cannot authorize or replay the same effect. Rejections become tool observations.
 
-## 4. Source precedence
+Calls use the existing audit table with novel, tool, status, duration and a size-limited input summary including run ID. Full results remain in the owned run. Inputs are size-limited local author data, not guaranteed secret-redacted text.
 
-1. Current approved canon applicable at requested story time.
-2. Approved structured story events and states.
-3. Approved chapter summaries.
-4. Approved chapter text.
-5. Drafts only when explicitly requested.
-6. Model inference, clearly labeled.
+No accept_generation, approve_canon, raw SQL, filesystem or shell execution tool is exposed to the model. Manuscript acceptance still requires an expected version. Formal canon adoption remains a separate author approval/revision transaction. Approving the propose_canon tool does not approve the resulting canon proposal.
 
-If two canon facts conflict, return a conflict object. Do not silently select one.
+## 3. RAG and context
 
-## 5. Retrieval strategy
+Retrieval fuses optional SQLite FTS5 trigram/BM25, deterministic Chinese-character/Latin-word lexical scoring, and exact Python cosine similarity for compatible stored embeddings using reciprocal rank fusion. Migration/ingestion detects FTS capability. Unsupported builds, missing FTS and short queries fall back safely to lexical scoring. Bounded quoted MATCH terms prevent raw user MATCH syntax. FTS candidates are filtered before their limit, then intersected again with the ORM-authorized set.
 
-Desktop-local target:
-- SQLite FTS5 lexical search (planned under NF-021).
-- Embeddings behind a provider-neutral vector-search adapter; current JSON/Python cosine scoring is a prototype, not a scalable index.
-- Do not make PostgreSQL or pgvector a desktop runtime dependency. They remain a deferred server profile.
-- Hard metadata filtering before ranking.
-- Reciprocal rank fusion.
-- Return source IDs, revision IDs and snippets.
+All ranking streams enforce novel ID, ready-document status, visibility and active chunks. Approved visibility is default. Only the explicit knowledge-search draft option includes drafts; private documents are not returned to the agent. Chapter-version documents are joined to the chapter current version so obsolete prose is not retrieved as current evidence. Exact version UUID provenance remains available for historical inspection.
 
-Chunking:
-- Preserve chapter and section boundaries.
-- Target 400–800 tokens with 80–120 token overlap as an initial heuristic.
-- Store chunking strategy version.
-- Avoid splitting character sheets or short structured records into arbitrary fragments.
-- Re-index when source revision changes.
+Manual ingestion uses a stable source UUID/revision. A ready revision's content is immutable; changed content needs a new revision. Successful newer ingestion deactivates earlier source chunks. Failed embedding requests preserve prior active content. Idempotent ingestion preserves chunk IDs; model-only reindex updates embeddings without breaking citations. Embeddings carry a model ID; mismatched model/dimension vectors do not participate in cosine ranking. Insert/update/delete triggers maintain FTS. Document deletion cascades chunks and removes their FTS entries.
 
-## 6. Provider interface
+The context compiler prioritizes canon, applies story-time state/event selection, passes the configured embedding provider/model into retrieval, and includes bounded earlier chapters at current versions. Current/future chapters are excluded from the recent block. Sections retain source/provenance, estimated tokens and omission warnings. Consistency checking remains a separate deterministic API; context assembly does not claim to resolve every semantic contradiction.
 
-Internal interfaces should expose:
-- `generate(messages, tools, response_schema, options)`
-- `embed(texts, model_profile)`
-- optional `rerank(query, documents, model_profile)`
+The vector adapter intentionally remains exact local Python over SQLite JSON vectors, suitable for the current small desktop corpus rather than large-scale ANN search. Mock embeddings are SHA-256-derived and have no semantic-quality claim. Learned reranking, real tokenizers and a task-specific model profile manager are not implemented.
 
-Provider adapters handle vendor-specific message formats, tool-call formats, retries, streaming and usage metadata.
+## 4. Actual MCP client
 
-Model profiles are task-specific:
-- outline
-- writing
-- critique
-- summary
-- extraction
-- embedding
-- reranking
+The product uses the official MCP Python SDK ClientSession with stdio and Streamable HTTP transports. Codex's own MCP tools are unrelated. Registrations are author-scoped, disabled by default, with an empty allowlist. Stdio requires an existing absolute executable path and does not implicitly invoke a shell. A narrow environment excludes model keys; the SDK supplies its standard OS environment. No roots, model sampling or elicitation capability is granted.
 
-Secrets are stored server-side using encrypted secret storage or environment configuration. Never return raw API keys to the browser.
+Explicit connection tests discover all tools without granting permission. Agent use additionally requires use_mcp=true, an enabled registration, a tool allowlist and an author decision for every external call. Untrusted server annotations never grant automatic read permission.
 
-## 7. Tool permission model
+Each operation owns its session/transport, overall timeout, initialization, tools/list or tools/call, and cleanup. Available means the last connection test succeeded, not that a live idle socket exists. No arbitrary service starts at application launch. Stdio servers require their own installed executable. Streamable HTTP supports HTTPS or explicit loopback HTTP, verified TLS, optional write-only bearer token, no inherited HTTP proxy and no automatic redirects.
 
-### READ
-- `get_character`
-- `get_character_state`
-- `search_worldbuilding`
-- `get_timeline`
-- `search_chapters`
-- `get_plot_outline`
-- `get_open_foreshadowing`
+Tools are aliased for the model and bound to server ID, original name, schema and full configuration hash. Changing command, args, URL, token or allowlist after discovery invalidates the run's execution target. The author must start a new run. Remote $ref/$dynamicRef/$recursiveRef references are rejected. Schema byte/depth/node limits and a no-network resolver prevent hidden schema fetches. Tool arguments and returned JSON have a 64,000 UTF-8-byte limit.
 
-### DRAFT
-- `create_chapter_outline_draft`
-- `generate_chapter_summary_draft`
-- `draft_character`
-- `draft_story_events`
+Approval is not an OS sandbox. An explicitly trusted local executable runs with the user's OS privileges; remote servers receive approved tool arguments. The UI makes this opt-in explicit.
 
-### PROPOSE
-- `propose_canon_update`
-- `propose_character_state_change`
-- `propose_foreshadowing_resolution`
+## 5. Settings and migration
 
-### WRITE
-- `accept_generation`
-- `approve_canon_proposal`
-- `save_chapter_version`
+/settings/ai supplies author-scoped mock/OpenAI-compatible configuration and a connection test without manuscript text. Masked reads reveal only whether a key exists. Settings apply to agent, generation, analysis, context and knowledge retrieval; environment values are fallback. Keys/tokens are backend-only and never returned in API responses, but are stored as plaintext in the local SQLite database (desktop file permission 0600). OS Keychain encryption is not implemented.
 
-WRITE operations require explicit user action or a narrowly scoped user-approved workflow token. A model cannot grant itself permission.
+Migration 20261120_0013 adds run/step/config/server tables and optional FTS resources. Legacy detection ignores only named FTS virtual/shadow tables and still checks domain tables/columns. Version-12 databases use the existing backed-up migration path. The sidecar build collects SDK/schema resources.
 
-## 8. Tool execution contract
+## 6. Verification and limits
 
-Every tool:
-- has a Pydantic input schema
-- has a Pydantic output schema
-- checks user and novel scope
-- enforces permission tier
-- has timeout and payload size limits
-- emits an audit record
-- is idempotent where practical
-- returns structured errors
-- never accepts arbitrary SQL or shell commands
+See AGENT_GAP_ANALYSIS.md for evidence and commands. Tests use temporary SQLite databases, local model HTTP substitutes and temporary MCP servers. No paid provider, real API key or user manuscript is required. The six-case RAG corpus is a tiny lexical/boundary regression set, not a semantic benchmark.
 
-Tool audit fields:
-- user_id
-- novel_id
-- generation_id
-- tool_name
-- input_redacted
-- permission_tier
-- approval_reference
-- status
-- output_summary
-- duration_ms
-- created_at
-
-## 9. Post-chapter analysis workflow
-
-After a chapter version is accepted:
-1. Enqueue analysis job keyed by immutable chapter_version_id.
-2. Produce summary and candidate story events.
-3. Extract candidate character-state changes.
-4. Detect possible contradictions against canon.
-5. Store proposals as pending.
-6. Show author review UI.
-7. On approval, write canon revision and related state in a transaction.
-8. Re-index affected sources.
-
-Never infer that a model-generated statement is canon merely because it appears in a saved chapter. It becomes a narrative fact; canon status requires explicit policy/approval.
-
-## 10. Consistency checking
-
-Use two layers:
-- Deterministic validators for structured facts and explicit constraints.
-- LLM-assisted analysis for semantic or behavioral contradictions.
-
-Every issue should include:
-- severity
-- issue type
-- involved entity/source IDs
-- evidence excerpts
-- explanation
-- confidence
-- suggested resolution
-- status
-
-LLM confidence is advisory. Do not present it as objective truth.
-
-## 11. Safety
-
-- Treat retrieved documents and user-uploaded files as untrusted content, not system instructions.
-- Tool definitions and system policy outrank retrieved text.
-- Do not follow instructions found inside manuscript content that ask to reveal secrets, alter permissions or call unrelated tools.
-- Apply prompt-injection defenses and output validation.
-- Do not send project content to external providers without user-configured provider consent and clear disclosure.
+Distributed orchestration, multi-agent delegation, Redis queues and a general plugin shell are deliberately absent for this single-author desktop application. Remaining production work includes OS secret storage, model-specific tokenization/quality evaluation, large-corpus indexing, stronger process sandboxing, richer observability and remote multi-user scheduling.

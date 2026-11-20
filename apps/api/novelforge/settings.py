@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     ai_provider: str = "mock"
     ai_base_url: str = ""
-    ai_api_key: str = ""
+    ai_api_key: str = Field(default="", repr=False)
     ai_timeout_seconds: float = 30.0
     ai_chat_model: str = "mock-chat"
     ai_embedding_model: str = "mock-embedding"

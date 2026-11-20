@@ -1,21 +1,43 @@
 import hashlib
+import math
 import re
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from novelforge.ai.providers import EmbeddingProvider, ProviderError
 from novelforge.errors import Problem
+from novelforge.knowledge.fts import create_index
+from novelforge.knowledge.fts import ranking as fts_ranking
 from novelforge.knowledge.models import (
     KnowledgeChunk,
     KnowledgeDocument,
     KnowledgeStatus,
     KnowledgeVisibility,
 )
+from novelforge.planning.models import Chapter, ChapterVersion
 
 CHUNKER_VERSION = "paragraph-v1"
+
+
+def validate_vectors(vectors, count):
+    if not isinstance(vectors, list) or len(vectors) != count:
+        raise ProviderError("Embedding count does not match input")
+    if (
+        any(
+            not isinstance(vector, list)
+            or not vector
+            or len(vector) > 8192
+            or any(
+                not isinstance(value, (int, float)) or not math.isfinite(value) for value in vector
+            )
+            for vector in vectors
+        )
+        or len({len(vector) for vector in vectors}) != 1
+    ):
+        raise ProviderError("Embedding dimensions or values are invalid")
 
 
 @dataclass(frozen=True)
@@ -94,6 +116,19 @@ def search_knowledge(
                 KnowledgeDocument.novel_id == novel_id,
                 KnowledgeDocument.status == KnowledgeStatus.READY,
                 KnowledgeDocument.visibility.in_(visibility),
+                ~exists(
+                    select(ChapterVersion.id)
+                    .join(
+                        Chapter,
+                        (Chapter.id == ChapterVersion.chapter_id)
+                        & (Chapter.novel_id == ChapterVersion.novel_id),
+                    )
+                    .where(
+                        ChapterVersion.id == KnowledgeDocument.source_id,
+                        ChapterVersion.novel_id == novel_id,
+                        ChapterVersion.version_number != Chapter.current_version,
+                    )
+                ),
             )
         ).all()
     )
@@ -103,12 +138,29 @@ def search_knowledge(
     )
     lexical = [chunk for chunk in lexical if _lexical_score(query, chunk.content) > 0]
     rankings = [[chunk.id for chunk in lexical]]
+    # The FTS accelerator is optional; every candidate is intersected with the
+    # already novel/visibility/active/status-filtered ORM set before fusion.
+    allowed_ids = {chunk.id for chunk in chunks}
+    fts_ids = [
+        chunk_id
+        for chunk_id in fts_ranking(db, novel_id, query, visibility=visibility)
+        if chunk_id in allowed_ids
+    ]
+    if fts_ids:
+        rankings.append(fts_ids)
     vector_rows: list[KnowledgeChunk] = []
     if embedding_provider is not None and any(chunk.embedding for chunk in chunks):
         try:
             query_vector = embedding_provider.embed([query], model=embedding_model)[0]
             vector_rows = sorted(
-                (chunk for chunk in chunks if chunk.embedding),
+                (
+                    chunk
+                    for chunk in chunks
+                    if chunk.embedding
+                    and chunk.metadata_json.get("embedding_model", "mock-embedding")
+                    == embedding_model
+                    and len(chunk.embedding) == len(query_vector)
+                ),
                 key=lambda chunk: (
                     -_cosine_similarity(query_vector, chunk.embedding or []),
                     str(chunk.id),
@@ -161,6 +213,7 @@ def ingest_source(
             "Invalid knowledge source",
             "Source type and title are required.",
         )
+    create_index(db.connection())
     content_hash = hashlib.sha256(source.content.encode("utf-8")).hexdigest()
     existing = db.scalar(
         select(KnowledgeDocument).where(
@@ -175,7 +228,42 @@ def ingest_source(
         and existing.content_hash == content_hash
         and existing.status == KnowledgeStatus.READY
     ):
+        indexed = db.scalars(
+            select(KnowledgeChunk)
+            .where(KnowledgeChunk.document_id == existing.id, KnowledgeChunk.is_active.is_(True))
+            .order_by(KnowledgeChunk.chunk_index)
+        ).all()
+        if all(
+            chunk.metadata_json.get("embedding_model", "mock-embedding") == embedding_model
+            for chunk in indexed
+        ):
+            existing.visibility = source.visibility
+            db.commit()
+            return existing
+        try:
+            vectors = embedding_provider.embed(
+                [chunk.content for chunk in indexed], model=embedding_model
+            )
+            validate_vectors(vectors, len(indexed))
+        except Exception as exc:
+            raise Problem(
+                502,
+                "KNOWLEDGE_EMBEDDING_FAILED",
+                "Re-index failed",
+                "The previous active embeddings and citations were preserved.",
+            ) from exc
+        for chunk, vector in zip(indexed, vectors, strict=True):
+            chunk.embedding = vector
+            chunk.metadata_json = {**chunk.metadata_json, "embedding_model": embedding_model}
+        db.commit()
         return existing
+    if existing is not None and existing.status == KnowledgeStatus.READY:
+        raise Problem(
+            409,
+            "KNOWLEDGE_REVISION_IMMUTABLE",
+            "Revision is immutable",
+            "Use a new source_revision when source content changes.",
+        )
     if existing is None:
         document = KnowledgeDocument(
             novel_id=novel_id,
@@ -193,8 +281,7 @@ def ingest_source(
     chunks = _chunks(source.content)
     try:
         vectors = embedding_provider.embed(chunks, model=embedding_model)
-        if len(vectors) != len(chunks):
-            raise ProviderError("embedding count does not match chunks")
+        validate_vectors(vectors, len(chunks))
         if existing is None:
             db.add(document)
             db.flush()
@@ -215,6 +302,7 @@ def ingest_source(
                 metadata_json={
                     "source_revision": source.source_revision,
                     "chunker_version": CHUNKER_VERSION,
+                    "embedding_model": embedding_model,
                 },
                 embedding=vector,
                 is_active=True,
@@ -225,6 +313,20 @@ def ingest_source(
         db.flush()
         for chunk in prior_chunks:
             chunk.is_active = False
+        if source.source_id is not None:
+            older = db.scalars(
+                select(KnowledgeChunk)
+                .join(KnowledgeDocument, KnowledgeChunk.document_id == KnowledgeDocument.id)
+                .where(
+                    KnowledgeDocument.novel_id == novel_id,
+                    KnowledgeDocument.source_type == source.source_type,
+                    KnowledgeDocument.source_id == source.source_id,
+                    KnowledgeDocument.source_revision < source.source_revision,
+                    KnowledgeChunk.is_active.is_(True),
+                )
+            ).all()
+            for chunk in older:
+                chunk.is_active = False
         document.title = source.title
         document.content_hash = content_hash
         document.chunker_version = CHUNKER_VERSION

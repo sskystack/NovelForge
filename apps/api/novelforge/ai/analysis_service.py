@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from novelforge.ai.analysis_models import ChapterAnalysis
 from novelforge.ai.analysis_proposal_models import AnalysisProposal
 from novelforge.ai.factory import create_chat_provider
+from novelforge.ai.local_config import effective_settings
 from novelforge.ai.providers import ChatMessage, ProviderError
 from novelforge.errors import Problem
 from novelforge.identity.models import User
@@ -22,6 +23,7 @@ from novelforge.settings import Settings
 def analyze_chapter_version(
     db: Session, owner: User, novel_id: UUID, chapter_version_id: UUID, settings: Settings
 ) -> ChapterAnalysis:
+    settings = effective_settings(db, owner.id, settings)
     get_novel(db, owner, novel_id)
     version = db.scalar(
         select(ChapterVersion).where(

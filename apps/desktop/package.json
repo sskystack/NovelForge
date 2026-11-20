@@ -1,7 +1,7 @@
 {
   "name": "@novelforge/desktop",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "scripts": {
     "dev": "npm run sidecar && tauri dev",
     "build": "npm --prefix ../web run build",

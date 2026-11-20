@@ -12,6 +12,8 @@ class ProviderError(RuntimeError):
 class ChatMessage:
     role: str
     content: str
+    tool_calls: tuple["ToolCall", ...] = ()
+    tool_call_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -50,6 +52,7 @@ class ChatProvider(Protocol):
         model: str,
         tools: Sequence[dict[str, Any]] = (),
         response_schema: dict[str, Any] | None = None,
+        max_output_tokens: int | None = None,
     ) -> ChatResponse: ...
 
     def stream(
@@ -71,13 +74,24 @@ class MockProvider:
         model: str = "mock-chat",
         tools=(),
         response_schema=None,
+        max_output_tokens=None,
     ) -> ChatResponse:
         prompt = "\n".join(message.content for message in messages)
         digest = sha256(prompt.encode("utf-8")).hexdigest()[:12]
         calls = ()
-        if tools:
-            tool = tools[0]
-            calls = (ToolCall(f"mock-{digest}", str(tool["name"]), {}),)
+        if tools and not any(message.role == "tool" for message in messages):
+            # Exercise one useful read, then finish after its observation. The mock
+            # never fabricates a write request and does not loop indefinitely.
+            tool = next(
+                (
+                    item
+                    for item in tools
+                    if item.get("function", item).get("name") == "read_outline"
+                ),
+                tools[0],
+            )
+            name = str(tool.get("function", tool)["name"])
+            calls = (ToolCall(f"mock-{digest}", name, {}),)
         return ChatResponse(
             content=f"Mock response [{digest}]: {prompt[-200:]}",
             tool_calls=calls,

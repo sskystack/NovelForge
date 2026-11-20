@@ -133,6 +133,49 @@ function mockWorkspace(override?: (url: string, init?: RequestInit) => Promise<R
 }
 
 describe("workspace runtime regressions", () => {
+  it("opens guided project setup from the first-project empty state", async () => {
+    mockWorkspace((url) => url.endsWith("/novels") ? Promise.resolve(response([])) : undefined);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Name your story" }));
+    expect(await screen.findByRole("dialog", { name: "Start your story" })).toBeTruthy();
+    expect(screen.getByLabelText("Story title")).toBeTruthy();
+  });
+
+  it("does not open project setup over an unsaved chapter", async () => {
+    mockWorkspace(); render(<App />);
+    await screen.findByRole("heading", { name: "Chapter 1" });
+    fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
+    fireEvent.change(screen.getByLabelText("Markdown source"), { target: { value: "Keep this manuscript" } });
+    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect((await screen.findByRole("alert")).textContent).toContain("Save your current changes");
+    expect((screen.getByLabelText("Markdown source") as HTMLTextAreaElement).value).toBe("Keep this manuscript");
+  });
+
+  it("keeps an unsaved manuscript when visiting a different workspace section", async () => {
+    mockWorkspace((url) => url.endsWith("/knowledge/documents") ? Promise.resolve(response([])) : undefined);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Chapter 1" });
+    fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
+    fireEvent.change(screen.getByLabelText("Markdown source"), { target: { value: "A draft that stays on the desk" } });
+    fireEvent.click(screen.getByRole("button", { name: "Story knowledge" }));
+    await screen.findByRole("heading", { name: "Story knowledge" });
+    fireEvent.click(screen.getByRole("button", { name: /^Manuscript/ }));
+    expect((screen.getByLabelText("Markdown source") as HTMLTextAreaElement).value).toBe("A draft that stays on the desk");
+    expect(screen.getByText("Unsaved changes")).toBeTruthy();
+  });
+
+  it("saves the draft with the desktop keyboard shortcut and current ETag", async () => {
+    const fetchMock = mockWorkspace((url, init) => url.endsWith("/chapters/chapter-1") && init?.method === "PATCH" ? Promise.resolve(response({ ...chapter, current_version: 2 }, 200, { ETag: '"2"' })) : undefined);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Chapter 1" });
+    fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
+    const source = screen.getByLabelText("Markdown source");
+    fireEvent.change(source, { target: { value: "Saved from the keyboard" } });
+    fireEvent.keyDown(source, { key: "s", metaKey: true });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/chapters/chapter-1"), expect.objectContaining({ method: "PATCH", headers: expect.objectContaining({ "if-match": '"1"' }), body: JSON.stringify({ content_format: "markdown", markdown: "Saved from the keyboard" }) })));
+  });
+
   it("does not discard an unsaved draft when switching chapters", async () => {
     const fetchMock = mockWorkspace();
     render(<App />);

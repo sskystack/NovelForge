@@ -8,6 +8,7 @@ from novelforge.ai.context import compile_context
 from novelforge.ai.factory import create_chat_provider
 from novelforge.ai.generation_models import GenerationSession, GenerationStatus, TaskProfile
 from novelforge.ai.generation_schemas import GenerationCreate
+from novelforge.ai.local_config import effective_settings
 from novelforge.ai.providers import ChatMessage, ProviderError
 from novelforge.errors import Problem
 from novelforge.identity.models import User
@@ -21,6 +22,12 @@ from novelforge.settings import Settings
 def start_generation(
     db: Session, owner: User, novel_id: UUID, payload: GenerationCreate, settings: Settings
 ) -> GenerationSession:
+    settings = effective_settings(db, owner.id, settings)
+    try:
+        embedding_provider = create_chat_provider(settings)
+    except ProviderError:
+        # Keep failed generations inspectable even if provider setup is invalid.
+        embedding_provider = None
     get_novel(db, owner, novel_id)
     chapter = None
     if payload.chapter_id is not None:
@@ -33,6 +40,8 @@ def start_generation(
             chapter.id,
             token_budget=payload.token_budget,
             query=payload.instructions or None,
+            embedding_provider=embedding_provider,
+            embedding_model=settings.ai_embedding_model,
         )
     model = payload.model or settings.ai_chat_model
     session = GenerationSession(

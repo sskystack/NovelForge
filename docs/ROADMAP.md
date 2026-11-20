@@ -1,5 +1,7 @@
 # NovelForge Desktop-Local First Roadmap
 
+> **Owner decision — 2026-11-20: macOS only.** Android, Windows and other platforms are no longer maintained, built or released. Historical multi-platform plans below do not authorize new work or create acceptance gates. Read the repository `AGENTS.md` first; current Agent/RAG/MCP implementation evidence is in `docs/AGENT_GAP_ANALYSIS.md`.
+
 **Status date:** 2026-11-07
 **Audited revision:** `27360af` (`main`)
 **Product priority:** Windows and macOS desktop, single-device local data

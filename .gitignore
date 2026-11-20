@@ -23,3 +23,12 @@ apps/desktop/src-tauri/gen/
 apps/desktop/.pyinstaller-work/
 apps/desktop/.pyinstaller-spec/
 *.dmg
+.local-data/
+work/
+# Local manuscripts, provider configuration and SQLite journals are not source files.
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3

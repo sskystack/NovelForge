@@ -1,5 +1,7 @@
 # NovelForge — First Engineering Backlog
 
+> **Owner decision — 2026-11-20: macOS only.** Android, Windows and other platforms are no longer maintained, built or released. Historical multi-platform plans below do not authorize new work or create acceptance gates. Read the repository `AGENTS.md` first; current Agent/RAG/MCP implementation evidence is in `docs/AGENT_GAP_ANALYSIS.md`.
+
 Labels: `epic`, `backend`, `frontend`, `database`, `ai`, `rag`, `security`, `docs`, `good first issue`.
 
 **Current product direction (2026-11-07): Desktop-Local First.** Windows/macOS desktop and local SQLite are the first delivery targets. SaaS, remote self-hosting, Android and multi-device sync are deferred. The audited implementation state and runnable sequence are maintained in [ROADMAP.md](ROADMAP.md).

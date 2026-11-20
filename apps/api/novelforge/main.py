@@ -9,10 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from novelforge.ai.agent_router import router as agent_router
 from novelforge.ai.analysis_proposal_router import router as analysis_proposal_router
 from novelforge.ai.analysis_router import router as analysis_router
 from novelforge.ai.context_router import router as context_router
 from novelforge.ai.generation_router import router as generation_router
+from novelforge.ai.local_config import router as local_config_router
+from novelforge.ai.mcp_gateway import router as mcp_router
 from novelforge.ai.tool_router import router as tool_router
 from novelforge.canon.revision_router import router as revision_router
 from novelforge.canon.router import router as canon_router
@@ -40,17 +43,22 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        from novelforge.ai.agent_service import recover_interrupted, shutdown
+
+        recover_interrupted(_app)
         yield
+        await shutdown(_app)
         database_engine.dispose()
 
     application = FastAPI(
         title="NovelForge API",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
     )
     application.state.settings = app_settings
     application.state.engine = database_engine
     application.state.session_factory = make_session_factory(database_engine)
+    application.state.agent_tasks = {}
     application.add_exception_handler(Problem, problem_handler)
     application.add_exception_handler(RequestValidationError, validation_error_handler)
     application.add_exception_handler(StarletteHTTPException, http_error_handler)
@@ -102,6 +110,9 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
         return {"status": "ready"}
 
     application.include_router(identity_router, prefix="/api/v1")
+    application.include_router(agent_router, prefix="/api/v1")
+    application.include_router(local_config_router, prefix="/api/v1")
+    application.include_router(mcp_router, prefix="/api/v1")
     application.include_router(projects_router, prefix="/api/v1")
     application.include_router(canon_router, prefix="/api/v1")
     application.include_router(consistency_router, prefix="/api/v1")

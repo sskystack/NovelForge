@@ -1,15 +1,17 @@
 # NovelForge — Platform and Packaging Specification
 
-**Current priority:** Desktop-Local First. This is a target specification; no Tauri shell or install artifacts existed at audited revision `27360af`.
+> **Owner decision — 2026-11-20: macOS only.** Android, Windows and other platforms are no longer maintained, built or released. Historical multi-platform plans below do not authorize new work or create acceptance gates. Read the repository `AGENTS.md` first; current Agent/RAG/MCP implementation evidence is in `docs/AGENT_GAP_ANALYSIS.md`.
+
+**Current target:** macOS Apple Silicon DMG. The standalone app/sidecar exists and is validated locally; Intel support requires a separate native build and validation. Ad-hoc signing is not Developer ID signing or Apple notarization.
 
 ## Product distribution targets
 
 | Platform | Artifact | Initial operating mode |
 |---|---|---|
-| Windows 10/11 x64 | `.exe` installer (Tauri NSIS) | First-priority local desktop target; planned |
-| macOS Apple Silicon | `.dmg` | First-priority local desktop target; planned |
+| Windows | No release | Unmaintained historical scaffold |
+| macOS Apple Silicon | `.dmg` | Only maintained distribution target |
 | macOS Intel | `.dmg` if supported by native build/signing | Compatibility decision remains open |
-| Android | Signed `.apk` | Deferred; outside current development stage |
+| Android | No release | Unmaintained historical scaffold; no APK jobs |
 | Web | Developer-run shared UI | Development surface, not a current SaaS deliverable |
 
 ## Desktop implementation
@@ -17,12 +19,12 @@
 - Use Tauri 2 as the native shell and React/Vite as the shared UI. Avoid Next.js server-side rendering in the shared app so it can be packaged as static assets.
 - Bundle the Python/FastAPI local service as a platform-specific sidecar executable. The Tauri host starts it, waits for a health check, restarts only under a bounded policy, and terminates it cleanly.
 - Desktop target uses SQLite. Keep database and retrieval access behind SQLAlchemy/service adapters and design a tested SQLite-compatible migration path before changing persistent structures.
-- Local lexical retrieval targets SQLite FTS5 plus a vector adapter. Current code has neither FTS5 nor pgvector retrieval; do not claim either is implemented or claim parity between them.
+- Local lexical retrieval targets SQLite FTS5 plus a vector adapter. Optional FTS5 is implemented with lexical fallback; exact vector retrieval remains a local adapter, without pgvector parity or large-corpus ANN claims.
 - Store the database, attachments, logs and backups under the OS-standard application data directory, never beside the installed executable.
 - Bind the local API to loopback only. Use an ephemeral per-launch credential or equivalent local IPC authorization; validate Origin and CSRF protections. Never expose the local service on `0.0.0.0` by default.
 - Installer upgrades must preserve user data and run versioned migrations with backup/rollback protection.
 
-## Deferred Android direction
+## Historical Android direction — unmaintained
 
 - Use Tauri 2 Android packaging for the shared UI. Android does not embed the Python sidecar, PostgreSQL or Redis.
 - Android v1 requires a configured SaaS/self-hosted API endpoint. Use OS-backed secure storage for credentials.
@@ -31,8 +33,8 @@
 
 ## Planned desktop build and release
 
-- CI should use native Windows and macOS runners; cross-compilation is not assumed to work for every native dependency.
-- Planned artifacts: Windows x64 installer `.exe` and macOS arm64 `.dmg` (x64 support remains a decision). Android `.apk` is deferred.
+- CI and release jobs use macOS runners; Python sidecars must be built for their native target.
+- Maintained artifact: macOS arm64 `.dmg`. Android APK and Windows installer jobs have been removed.
 - Release builds should be code-signed. macOS distribution outside local development requires Developer ID signing and notarization for a smooth Gatekeeper experience. Windows signing is strongly recommended to reduce SmartScreen warnings.
 - Signing certificates, Apple credentials and Android keystore material live only in CI secrets. Never commit them.
 - Publish checksums, version, supported OS versions and known limitations alongside each release.
@@ -40,7 +42,7 @@
 
 ## Acceptance gates
 
-1. A clean Windows/macOS machine with no Python, Node.js, PostgreSQL or Docker can install and run the desktop app.
+1. The macOS Apple Silicon app bundles its runtime; a clean-machine distribution test is separate from local validation.
 2. Local projects persist across close/reopen, backup/restore and upgrade; uninstall data retention is documented.
 3. No local API listener is reachable from the LAN by default; sidecar lifecycle and local authorization are tested.
-4. Windows and macOS release artifacts are reproducible in CI and smoke-tested.
+4. macOS release artifacts are built and smoke-tested. No Android/Windows acceptance gates apply.

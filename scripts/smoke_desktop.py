@@ -5,6 +5,7 @@ import json
 import os
 import queue
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -75,6 +76,32 @@ def sidecar(binary: Path, data_dir: Path, provider=None):
 
 def run(binary: Path, data_dir: Path) -> dict:
     checks = []
+    mcp_fixture = data_dir.parent / "mcp_fixture.py"
+    mcp_fixture.write_text('''import json, sys
+for line in sys.stdin:
+    message = json.loads(line)
+    if "id" not in message:
+        continue
+    method = message.get("method")
+    if method == "initialize":
+        result = {"protocolVersion": message["params"]["protocolVersion"], "capabilities": {"tools": {}}, "serverInfo": {"name": "isolated-smoke", "version": "1"}}
+    elif method == "tools/list":
+        result = {"tools": [{"name": "lookup", "description": "Isolated fixture lookup", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"], "additionalProperties": False}}]}
+    elif method == "tools/call":
+        result = {"content": [{"type": "text", "text": "MCP fixture observed: " + message["params"]["arguments"]["query"]}], "isError": False}
+    else:
+        result = {}
+    print(json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": result}), flush=True)
+''', encoding="utf-8")
+
+    def wait_agent(call, base, run_id, statuses=("succeeded", "failed", "waiting_approval")):
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            row, _ = call("GET", base + f"/agent/runs/{run_id}")
+            if row["status"] in statuses:
+                return row
+            time.sleep(0.03)
+        raise AssertionError("Agent did not reach its expected persisted state")
     credentials = {"email": f"packaged-{uuid4().hex}@example.com", "password": "isolated smoke password"}
     with sidecar(binary, data_dir) as (call, headers, first_origin):
         call("POST", "/api/v1/auth/register", {**credentials, "display_name": "Smoke writer"}, expected=201)
@@ -99,6 +126,21 @@ def run(binary: Path, data_dir: Path) -> dict:
         assert search["results"]
         call("POST", base + "/ai/tools/read_characters/execute", {"arguments": {"query": "主角"}})
         checks.extend(["generation preview and explicit acceptance", "analysis and knowledge retrieval", "registered tool execution"])
+        settings, _ = call("GET", "/api/v1/settings/ai")
+        assert settings["provider"] == "mock" and "api_key" not in settings
+        call("POST", "/api/v1/settings/ai/test")
+        run, _ = call("POST", base + "/agent/runs", {"prompt": "检查大纲和人物"}, expected=202)
+        assert run["status"] == "queued"
+        run = wait_agent(call, base, run["id"])
+        assert run["status"] == "succeeded" and run["rounds_used"] == 2 and run["tools_used"] == 1
+        assert [step["kind"] for step in run["steps"]] == ["model", "tool", "model"]
+        server_config = {"name": "Frozen MCP fixture", "transport": "stdio", "command": sys.executable,
+                         "args": [str(mcp_fixture)], "enabled": True, "allowed_tools": ["lookup"]}
+        server_registration, _ = call("POST", "/api/v1/mcp/servers", server_config, expected=201)
+        discovered, _ = call("POST", f"/api/v1/mcp/servers/{server_registration['id']}/test")
+        assert discovered["ok"] and discovered["tools"][0]["name"] == "lookup"
+        checks.extend(["masked local model settings and offline test", "durable asynchronous multi-turn agent",
+                       "frozen MCP SDK stdio initialization and discovery"])
         archive, _ = call("GET", base + "/export", raw=True)
         imported, _ = call("POST", "/api/v1/novels/import", archive, expected=201, extra={"Content-Type": "application/zip"})
         assert imported["id"] != novel["id"]
@@ -119,8 +161,19 @@ def run(binary: Path, data_dir: Path) -> dict:
             if self.path.endswith("embeddings"):
                 payload = {"data": [{"index": i, "embedding": [0.2, 0.8]} for i, _ in enumerate(body["input"])]}
             else:
-                content = json.dumps({"summary": "测试摘要", "events": [], "character_states": [], "consistency_warnings": []}) if "response_format" in body else "Configured provider draft"
-                payload = {"model": body["model"], "choices": [{"message": {"content": content}, "finish_reason": "stop"}]}
+                if body.get("tools") and not any(item["role"] == "tool" for item in body["messages"]):
+                    name = next((item["function"]["name"] for item in body["tools"]
+                                 if item["function"]["name"].startswith("mcp_")), "read_outline")
+                    arguments = {"query": "frozen protocol evidence"} if name.startswith("mcp_") else {}
+                    message = {"content": "", "tool_calls": [{"id": "frozen-tool-call", "type": "function",
+                               "function": {"name": name, "arguments": json.dumps(arguments)}}]}
+                    finish = "tool_calls"
+                else:
+                    if any(item["role"] == "tool" for item in body["messages"]):
+                        assert body["messages"][-1]["tool_call_id"] == "frozen-tool-call"
+                    content = json.dumps({"summary": "测试摘要", "events": [], "character_states": [], "consistency_warnings": []}) if "response_format" in body else "Configured provider draft"
+                    message, finish = {"content": content}, "stop"
+                payload = {"model": body["model"], "choices": [{"message": message, "finish_reason": finish}]}
             encoded = json.dumps(payload).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -147,9 +200,20 @@ def run(binary: Path, data_dir: Path) -> dict:
             analysis, _ = call("POST", base + f"/ai/analysis/{versions[0]['id']}", expected=202)
             assert analysis["status"] == "succeeded"
             call("GET", base + "/knowledge/search?query=Smoke")
+            agent, _ = call("POST", base + "/agent/runs", {"prompt": "Use the MCP fixture", "use_mcp": True}, expected=202)
+            agent = wait_agent(call, base, agent["id"])
+            assert agent["status"] == "waiting_approval", agent
+            step = next(item for item in agent["steps"] if item["status"] == "waiting_approval")
+            call("POST", base + f"/agent/runs/{agent['id']}/steps/{step['id']}/decision", {"approve": True}, expected=202)
+            agent = wait_agent(call, base, agent["id"], statuses=("succeeded", "failed"))
+            assert agent["status"] == "succeeded", agent
+            assert any("MCP fixture observed" in json.dumps(item["result"]) for item in agent["steps"])
+            call("POST", base + f"/agent/runs/{agent['id']}/steps/{step['id']}/decision", {"approve": True}, expected=409)
+            call("DELETE", f"/api/v1/mcp/servers/{server_registration['id']}", expected=204)
             assert "smoke-embedding" in models and "smoke-chat" in models
             assert "mock-embedding" not in models and "mock-chat" not in models
             checks.extend(["restart preserves projects", "configured chat and embedding models", "frozen provider loads bundled TLS certificates"])
+            checks.append("frozen MCP tools/call with durable approval and matched model observation")
     finally:
         server.shutdown()
         server.server_close()

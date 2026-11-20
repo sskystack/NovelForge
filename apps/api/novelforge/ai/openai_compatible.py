@@ -39,15 +39,38 @@ class OpenAICompatibleProvider:
 
     @staticmethod
     def _body(messages: Sequence[ChatMessage], model: str, tools=()) -> dict:
-        body = {"model": model, "messages": [message.__dict__ for message in messages]}
+        serialized = []
+        for message in messages:
+            item = {"role": message.role, "content": message.content}
+            if message.tool_call_id is not None:
+                item["tool_call_id"] = message.tool_call_id
+            if message.tool_calls:
+                item["tool_calls"] = [
+                    {
+                        "id": call.id,
+                        "type": "function",
+                        "function": {"name": call.name, "arguments": json.dumps(call.arguments)},
+                    }
+                    for call in message.tool_calls
+                ]
+            serialized.append(item)
+        body = {"model": model, "messages": serialized}
         if tools:
             body["tools"] = list(tools)
         return body
 
     def chat(
-        self, messages: Sequence[ChatMessage], *, model: str, tools=(), response_schema=None
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        model: str,
+        tools=(),
+        response_schema=None,
+        max_output_tokens=None,
     ) -> ChatResponse:
         body = self._body(messages, model, tools)
+        if max_output_tokens is not None:
+            body["max_tokens"] = max_output_tokens
         if response_schema is not None:
             body["response_format"] = {
                 "type": "json_schema",

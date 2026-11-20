@@ -1,6 +1,8 @@
 # NovelForge — Development Guide
 
-**Product priority:** Desktop-Local First. Windows/macOS installers are not implemented yet. This guide distinguishes today's source-development setup from the planned local runtime.
+> **Owner decision — 2026-11-20: macOS only.** Android, Windows and other platforms are no longer maintained, built or released. Historical multi-platform plans below do not authorize new work or create acceptance gates. Read the repository `AGENTS.md` first; current Agent/RAG/MCP implementation evidence is in `docs/AGENT_GAP_ANALYSIS.md`.
+
+The maintained Tauri macOS app, frozen Python sidecar, and SQLite runtime are implemented. Use `./script/build_and_run.sh` (also Codex Run) for the native build/run loop, with ignored `.local-data/` development fixtures. Optional flags are `--logs`, `--debug`, `--telemetry` and `--verify`.
 
 ## 1. Repository layout
 
@@ -27,7 +29,7 @@ novelforge/
 │       ├── features/
 │       └── tests/
 ├── apps/desktop/          # Tauri 2 desktop shell
-├── apps/mobile/           # Tauri 2 Android target
+├── apps/mobile/           # historical, unmaintained Android scaffold
 ├── packages/
 │   └── shared-contracts/
 ├── db/
@@ -70,7 +72,7 @@ novelforge/
 - Markdown/Tiptap conversion
 
 ### Integration
-- PostgreSQL and pgvector
+- SQLite migration, optional FTS5 and exact vector retrieval
 - novel-scope repository enforcement
 - chapter version conflict
 - canon approval transaction
@@ -100,13 +102,13 @@ novelforge/
 ## 5. Local development
 
 1. Copy `.env.example` to `.env`.
-2. Run OS-specific setup; install Python and Node.js for source development. Docker is not required.
-3. The audited default API configuration targets PostgreSQL; automated API and migration tests use SQLite. A supported desktop SQLite profile is planned under NF-021.
+2. Run macOS setup; install Python and Node.js for source development. Docker is not required.
+3. The native runtime selects per-user file-backed SQLite and applies migrations. The browser development API uses a separately configured database.
 4. Start FastAPI and Vite using the task runner.
 5. Configure a mock provider for tests.
-6. Desktop installers and Android APK cannot yet be built; their application targets are not implemented.
+6. Build the native macOS application with the Run script or `npm run tauri:build --prefix apps/desktop`. Android and Windows are no longer maintained.
 
-For the current source workflow, copy `.env.example` to `.env`, configure `DATABASE_URL` for a local development database, then run `uv run --directory apps/api alembic -c alembic.ini upgrade head`. The checked-in default still points to PostgreSQL; SQLite has test coverage but is not yet the supported end-user profile. Use `SESSION_COOKIE_SECURE=false` only for plain HTTP localhost development.
+For the current source workflow, copy `.env.example` to `.env`, configure `DATABASE_URL` for a local development database, then run `uv run --directory apps/api alembic -c alembic.ini upgrade head`. The checked-in default still points to PostgreSQL; the native app selects a supported SQLite profile automatically. Use `SESSION_COOKIE_SECURE=false` only for plain HTTP localhost development.
 
 ## 6. CI gates
 
@@ -118,8 +120,8 @@ For the current source workflow, copy `.env.example` to `.env`, configure `DATAB
 - Playwright smoke tests
 - migration validation
 - dependency and secret scanning
-- Windows/macOS desktop package build smoke tests
-- Android APK build smoke test (deferred)
+- macOS frozen-sidecar, signed bundle and DMG smoke tests
+- no Android or Windows release gates
 
 ## 7. Definition of Done
 

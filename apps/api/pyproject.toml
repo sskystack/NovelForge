@@ -1,6 +1,6 @@
 [project]
 name = "novelforge-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "NovelForge modular monolith API"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,6 +13,9 @@ dependencies = [
   "sqlalchemy>=2.0,<3",
   "uvicorn[standard]>=0.32,<1",
   "certifi>=2024.8.30",
+  "mcp>=1.20,<2",
+  "jsonschema>=4.23,<5",
+  "httpx>=0.27,<1",
 ]
 
 [project.optional-dependencies]

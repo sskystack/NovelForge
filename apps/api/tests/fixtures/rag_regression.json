@@ -1,0 +1,19 @@
+{
+  "description": "Small deterministic boundary/lexical regression corpus; not a semantic quality benchmark.",
+  "documents": [
+    {"novel": "alpha", "key": "rule", "title": "灵力法则", "revision": 1, "content": "灵力必须经过月光淬炼。"},
+    {"novel": "alpha", "key": "map", "title": "Harbor map", "revision": 1, "content": "The moonstone compass points to the northern harbor."},
+    {"novel": "alpha", "key": "secret", "title": "Private ledger", "revision": 1, "content": "privateexclusive ledger", "visibility": "private"},
+    {"novel": "beta", "key": "foreign", "title": "Other novel", "revision": 1, "content": "foreignexclusive secret in another novel"},
+    {"novel": "alpha", "key": "gate", "title": "Obsolete gate", "revision": 1, "content": "obsoleteexclusive gate"},
+    {"novel": "alpha", "key": "gate", "title": "Current gate", "revision": 2, "content": "currentexclusive gate"}
+  ],
+  "cases": [
+    {"id": "chinese", "novel": "alpha", "query": "月光淬炼", "expected_title": "灵力法则"},
+    {"id": "english", "novel": "alpha", "query": "moonstone compass", "expected_title": "Harbor map"},
+    {"id": "visibility", "novel": "alpha", "query": "privateexclusive", "expected_title": null},
+    {"id": "novel_boundary", "novel": "alpha", "query": "foreignexclusive", "expected_title": null},
+    {"id": "obsolete_revision", "novel": "alpha", "query": "obsoleteexclusive", "expected_title": null},
+    {"id": "latest_revision", "novel": "alpha", "query": "currentexclusive", "expected_title": "Current gate"}
+  ]
+}

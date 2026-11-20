@@ -6,7 +6,7 @@ on:
 
 jobs:
   api:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
           exit 1
 
   web:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     defaults:
       run:
         working-directory: apps/web
@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -71,17 +71,7 @@ jobs:
         with:
           node-version: "20"
       - uses: astral-sh/setup-uv@v5
-      - name: Validate and run setup on Unix
-        if: runner.os != 'Windows'
+      - name: Validate and run macOS setup
         run: |
           bash -n scripts/setup.sh
           ./scripts/setup.sh
-      - name: Validate and run setup on Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/scripts/setup.ps1", [ref]$tokens, [ref]$errors) | Out-Null
-          if ($errors) { throw $errors }
-          ./scripts/setup.ps1

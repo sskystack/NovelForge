@@ -11,6 +11,7 @@ from sqlalchemy import URL, Connection, inspect
 
 from alembic import command
 from novelforge.database import Base, create_database_engine
+from novelforge.knowledge.fts import FTS_TABLES
 from novelforge.projects import models_registry  # noqa: F401
 
 
@@ -22,7 +23,7 @@ def sqlite_url(database_path: Path) -> str:
 
 def _legacy_revision(connection: Connection, scripts: ScriptDirectory) -> str:
     """Recognize only complete, known create_all-era schemas, never guess from one table."""
-    actual_tables = set(inspect(connection).get_table_names()) - {"alembic_version"}
+    actual_tables = set(inspect(connection).get_table_names()) - {"alembic_version"} - FTS_TABLES
     scratch = create_database_engine("sqlite://")
     try:
         config = Config()
@@ -32,7 +33,9 @@ def _legacy_revision(connection: Connection, scripts: ScriptDirectory) -> str:
             config.attributes["connection"] = candidate
             for revision in reversed(list(scripts.walk_revisions())):
                 command.upgrade(config, revision.revision)
-                expected = set(inspect(candidate).get_table_names()) - {"alembic_version"}
+                expected = (
+                    set(inspect(candidate).get_table_names()) - {"alembic_version"} - FTS_TABLES
+                )
                 if actual_tables == expected:
                     for name in actual_tables:
                         required = set(Base.metadata.tables[name].columns.keys())

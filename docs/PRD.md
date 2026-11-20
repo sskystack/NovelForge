@@ -1,6 +1,8 @@
 # NovelForge — Product Requirements Document
 
-> **Current release direction (2026-11-07): Desktop-Local First.** This direction supersedes server/SaaS/Android-first implications in the baseline below. Windows and macOS local desktop are the first targets. SQLite is the planned production local database. SaaS, remote self-hosting, Android and multi-device sync are deferred. Existing implemented functionality remains subject to the audit in [ROADMAP.md](ROADMAP.md); this notice does not claim desktop packaging or a supported SQLite runtime already exists.
+> **Owner decision — 2026-11-20: macOS only.** Android, Windows and other platforms are no longer maintained, built or released. Historical multi-platform plans below do not authorize new work or create acceptance gates. Read the repository `AGENTS.md` first; current Agent/RAG/MCP implementation evidence is in `docs/AGENT_GAP_ANALYSIS.md`.
+
+> **Historical baseline (2026-11-07), superseded by the macOS-only decision above.** This direction supersedes server/SaaS/Android-first implications in the baseline below. Windows and macOS local desktop are the first targets. SQLite is the planned production local database. SaaS, remote self-hosting, Android and multi-device sync are deferred. Existing implemented functionality remains subject to the audit in [ROADMAP.md](ROADMAP.md); this notice does not claim desktop packaging or a supported SQLite runtime already exists.
 
 **Version:** 1.0
 **Status:** Baseline for MVP

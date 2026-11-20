@@ -53,16 +53,22 @@ class ToolRegistry:
         novel_id: UUID,
         *,
         generation_id: UUID | None = None,
+        agent_run_id: UUID | None = None,
         max_calls: int = 20,
         timeout_seconds: float = 2.0,
+        embedding_provider=None,
+        embedding_model: str = "mock-embedding",
     ):
         self.db = db
         self.owner = owner
         self.novel_id = novel_id
         self.generation_id = generation_id
+        self.agent_run_id = agent_run_id
         self.max_calls = max_calls
         self.timeout_seconds = timeout_seconds
         self.call_count = 0
+        self.embedding_provider = embedding_provider
+        self.embedding_model = embedding_model
         self.definitions = self._definitions()
 
     def _definitions(self) -> dict[str, ToolDefinition]:
@@ -111,6 +117,7 @@ class ToolRegistry:
         status = "failed"
         started = time.monotonic()
         result: dict = {}
+        driver_connection = None
         try:
             if self.call_count > self.max_calls:
                 raise Problem(
@@ -137,10 +144,16 @@ class ToolRegistry:
                 raise Problem(
                     422, "INVALID_TOOL_ARGUMENTS", "Invalid tool arguments", str(error)
                 ) from error
+            if self.db.bind.dialect.name == "sqlite":
+                driver_connection = self.db.connection().connection.driver_connection
+                deadline = started + min(self.timeout_seconds, tool.timeout_seconds)
+                driver_connection.set_progress_handler(lambda: time.monotonic() > deadline, 500)
             result = tool.handler(payload)
             status = "succeeded"
             return result
         finally:
+            if driver_connection is not None:
+                driver_connection.set_progress_handler(None, 0)
             self._audit(name, status, int((time.monotonic() - started) * 1000), arguments)
 
     def _audit(self, name: str, status: str, duration_ms: int, arguments: dict) -> None:
@@ -154,7 +167,12 @@ class ToolRegistry:
                     tool_name=name,
                     status=status,
                     duration_ms=duration_ms,
-                    input_summary=json.dumps(arguments, ensure_ascii=False)[:2000],
+                    input_summary=json.dumps(
+                        {"run_id": str(self.agent_run_id), "arguments": arguments}
+                        if self.agent_run_id
+                        else arguments,
+                        ensure_ascii=False,
+                    )[:2000],
                 )
             )
             self.db.commit()
@@ -269,6 +287,8 @@ class ToolRegistry:
             self.db,
             self.novel_id,
             payload.query,
+            embedding_provider=self.embedding_provider,
+            embedding_model=self.embedding_model,
             visibility=(KnowledgeVisibility.APPROVED,),
             limit=payload.limit,
         )

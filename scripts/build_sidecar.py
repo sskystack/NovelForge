@@ -33,6 +33,14 @@ def main() -> None:
         "--hidden-import", "uvicorn.protocols.http.h11_impl",
         "--hidden-import", "uvicorn.lifespan.on",
         "--copy-metadata", "email-validator",
+        "--collect-submodules", "mcp.client",
+        "--collect-submodules", "mcp.shared",
+        "--collect-data", "mcp",
+        "--copy-metadata", "mcp",
+        "--collect-data", "jsonschema_specifications",
+        "--copy-metadata", "jsonschema",
+        "--copy-metadata", "jsonschema-specifications",
+        "--copy-metadata", "referencing",
         str(api / "novelforge/desktop_entry.py"),
     ]
     subprocess.run(command, cwd=api, check=True)
