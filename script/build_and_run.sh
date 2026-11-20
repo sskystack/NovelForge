@@ -50,6 +50,7 @@ npm run sidecar --prefix apps/desktop
   npm exec -- tauri build --bundles app
 )
 /usr/bin/codesign --verify --deep --strict "$APP_BUNDLE"
+uv run --project "$ROOT_DIR/apps/api" --extra dev python "$ROOT_DIR/scripts/verify_macos_bundle.py" "$APP_BUNDLE"
 mkdir -p "$DATA_DIR/logs"
 chmod 700 "$DATA_DIR"
 printf 'Development data: %s\n' "$DATA_DIR"

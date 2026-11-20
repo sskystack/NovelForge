@@ -58,14 +58,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Agent studio", () => {
+describe("创作助手", () => {
   it("shows exact tool arguments, source revisions and an explicit mock label", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(json([run]));
     render(<AgentWorkspace novelId="novel-1" draftDirty={false} />);
-    expect(await screen.findByText("Mock · deterministic demo")).toBeTruthy();
+    expect(await screen.findByText("演示模型 · 固定输出")).toBeTruthy();
     expect(screen.getByText(/Lighthouse keeper/)).toBeTruthy();
-    expect(screen.getByText(/chapter version · revision 2/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Approve action" })).toBeTruthy();
+    expect(screen.getByText(/chapter version · 修订 2/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "批准操作" })).toBeTruthy();
   });
 
   it("binds approval to the existing step and never resubmits tool arguments", async () => {
@@ -80,7 +80,7 @@ describe("Agent studio", () => {
       );
     render(<AgentWorkspace novelId="novel-1" draftDirty={false} />);
     fireEvent.click(
-      await screen.findByRole("button", { name: "Approve action" }),
+      await screen.findByRole("button", { name: "批准操作" }),
     );
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -106,10 +106,10 @@ describe("Agent studio", () => {
     render(<AgentWorkspace novelId="novel-1" draftDirty />);
     expect(
       (
-        await screen.findByRole("button", { name: "Approve action" })
+        await screen.findByRole("button", { name: "批准操作" })
       ).hasAttribute("disabled"),
     ).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Reject" }));
+    fireEvent.click(screen.getByRole("button", { name: "拒绝" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/steps/step-1/decision"),
@@ -129,14 +129,14 @@ describe("Agent studio", () => {
             : json([run]),
       );
     render(<AgentWorkspace novelId="novel-1" draftDirty={false} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Cancel task" }));
+    fireEvent.click(await screen.findByRole("button", { name: "取消任务" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/run-1/cancel"),
         expect.objectContaining({ method: "POST" }),
       ),
     );
-    expect(await screen.findByText(/cancelled ·/)).toBeTruthy();
+    expect(await screen.findByText(/已取消 ·/)).toBeTruthy();
   });
 
   it("starts a bounded task with MCP disabled unless explicitly selected", async () => {
@@ -148,11 +148,11 @@ describe("Agent studio", () => {
           : json([]),
       );
     render(<AgentWorkspace novelId="novel-1" draftDirty={false} />);
-    await screen.findByText("Your first task will appear here.");
-    fireEvent.change(screen.getByLabelText("What would you like to work on?"), {
+    await screen.findByText("任务记录会显示在这里。");
+    fireEvent.change(screen.getByLabelText("描述这次任务"), {
       target: { value: "Trace the lighthouse" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Start task" }));
+    fireEvent.click(screen.getByRole("button", { name: "开始任务" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/v1/novels/novel-1/agent/runs",
@@ -179,11 +179,24 @@ describe("Agent studio", () => {
     expect((await screen.findByRole("alert")).textContent).toContain(
       "Local agent service unavailable",
     );
-    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "重试" })).toBeTruthy();
   });
 });
 
 describe("Knowledge workspace", () => {
+  it("selects a source and displays the exact revision and excerpt in its detail panel", async () => {
+    const sources = [run.sources[0], { ...run.sources[0], chunk_id: "chunk-2", title: "第二份来源", source_revision: 7, content: "只有第二份来源包含的证据" }];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => String(input).endsWith("/documents") ? json([]) : json({ results: sources }));
+    render(<KnowledgeWorkspace novelId="novel-1" />);
+    fireEvent.change(screen.getByLabelText("检索故事资料"), { target: { value: "灯塔" } });
+    fireEvent.click(screen.getByRole("button", { name: "搜索" }));
+    fireEvent.click(await screen.findByRole("button", { name: /第二份来源/ }));
+    const details = screen.getByRole("complementary", { name: "来源详情" });
+    expect(details.textContent).toContain("第二份来源");
+    expect(details.textContent).toContain("修订 7");
+    expect(details.textContent).toContain("只有第二份来源包含的证据");
+  });
+
   it("searches approved knowledge by default and displays inspectable sources", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
@@ -193,12 +206,12 @@ describe("Knowledge workspace", () => {
           : json({ results: run.sources }),
       );
     render(<KnowledgeWorkspace novelId="novel-1" />);
-    fireEvent.change(screen.getByLabelText("Search your story"), {
+    fireEvent.change(screen.getByLabelText("检索故事资料"), {
       target: { value: "灯塔" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
-    expect(await screen.findByText("The first letter")).toBeTruthy();
-    expect(screen.getByText("The lamp is green.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "搜索" }));
+    expect((await screen.findAllByText("The first letter")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("The lamp is green.").length).toBeGreaterThan(0);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("query=%E7%81%AF%E5%A1%94&include_drafts=false"),
       expect.anything(),
@@ -221,16 +234,16 @@ describe("Local model and MCP settings", () => {
   it("reads masked settings and never overwrites a key when the key field is blank", async () => {
     const fetchMock = setup();
     render(<SettingsDialog onClose={vi.fn()} onSaved={vi.fn()} />);
-    expect(await screen.findByText("A key is configured")).toBeTruthy();
+    expect(await screen.findByText("已保存密钥")).toBeTruthy();
     expect(
       (
         screen.getByPlaceholderText(
-          "Leave empty to keep stored key",
+          "留空保留现有密钥",
         ) as HTMLInputElement
       ).value,
     ).toBe("");
     fireEvent.click(
-      screen.getByRole("button", { name: "Save model settings" }),
+      screen.getByRole("button", { name: "保存模型设置" }),
     );
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -258,7 +271,7 @@ describe("Local model and MCP settings", () => {
     const { unmount } = render(
       <SettingsDialog onClose={close} onSaved={vi.fn()} />,
     );
-    await screen.findByText("A key is configured");
+    await screen.findByText("已保存密钥");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(close).toHaveBeenCalledOnce();
     unmount();
@@ -274,7 +287,7 @@ describe("Local model and MCP settings", () => {
     );
     render(<SettingsDialog onClose={vi.fn()} onSaved={vi.fn()} />);
     fireEvent.click(
-      await screen.findByRole("button", { name: "Clear stored model key" }),
+      await screen.findByRole("button", { name: "清除已保存的模型密钥" }),
     );
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -285,17 +298,17 @@ describe("Local model and MCP settings", () => {
         }),
       ),
     );
-    expect(await screen.findByText("Stored model key cleared.")).toBeTruthy();
+    expect(await screen.findByText("已清除模型密钥。")).toBeTruthy();
   });
 
   it("prevents default settings from overwriting unavailable saved configuration", async () => {
     setup(() => json({ detail: "Settings unavailable" }, 503));
     render(<SettingsDialog onClose={vi.fn()} onSaved={vi.fn()} />);
     expect(
-      await screen.findByRole("button", { name: "Retry settings" }),
+      await screen.findByRole("button", { name: "重新加载设置" }),
     ).toBeTruthy();
     expect(
-      screen.queryByRole("button", { name: "Save model settings" }),
+      screen.queryByRole("button", { name: "保存模型设置" }),
     ).toBeNull();
   });
 
@@ -317,19 +330,19 @@ describe("Local model and MCP settings", () => {
         : undefined,
     );
     render(<SettingsDialog onClose={vi.fn()} onSaved={vi.fn()} />);
-    await screen.findByText("A key is configured");
-    fireEvent.click(screen.getByRole("tab", { name: "MCP servers" }));
-    fireEvent.change(screen.getByLabelText("Server name"), {
+    await screen.findByText("已保存密钥");
+    fireEvent.click(screen.getByRole("tab", { name: "MCP 工具" }));
+    fireEvent.change(screen.getByLabelText("连接名称"), {
       target: { value: "Research" },
     });
-    fireEvent.change(screen.getByLabelText("Command"), {
+    fireEvent.change(screen.getByLabelText("启动命令"), {
       target: { value: "/local/server" },
     });
-    fireEvent.change(screen.getByLabelText("Allowed tools (comma separated)"), {
+    fireEvent.change(screen.getByLabelText("允许的工具（逗号分隔）"), {
       target: { value: "lookup" },
     });
     fireEvent.click(
-      screen.getByRole("button", { name: "Add disabled server" }),
+      screen.getByRole("button", { name: "添加为禁用连接" }),
     );
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -350,7 +363,7 @@ describe("Local model and MCP settings", () => {
     );
     expect(
       await screen.findByText(
-        "Server added disabled. Review its tools before enabling it.",
+        "连接已添加且保持禁用，请先检查工具权限。",
       ),
     ).toBeTruthy();
   });
@@ -375,13 +388,13 @@ describe("Local model and MCP settings", () => {
           : undefined,
     );
     render(<SettingsDialog onClose={vi.fn()} onSaved={vi.fn()} />);
-    await screen.findByText("A key is configured");
-    fireEvent.click(screen.getByRole("tab", { name: "MCP servers" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    await screen.findByText("已保存密钥");
+    fireEvent.click(screen.getByRole("tab", { name: "MCP 工具" }));
+    fireEvent.click(screen.getByRole("button", { name: "移除" }));
     expect(
       fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE"),
     ).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: "Remove server" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认移除连接" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/v1/mcp/servers/server-1",

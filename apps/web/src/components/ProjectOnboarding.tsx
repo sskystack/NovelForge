@@ -34,7 +34,7 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
   const [genre, setGenre] = useState("");
   const [language, setLanguage] = useState("zh-CN");
   const [createChapter, setCreateChapter] = useState(true);
-  const [chapterTitle, setChapterTitle] = useState("Chapter 1");
+  const [chapterTitle, setChapterTitle] = useState("第一章");
   const [chapterGoal, setChapterGoal] = useState("");
   const [busy, setBusy] = useState(false);
   const [projectSaved, setProjectSaved] = useState(false);
@@ -107,10 +107,10 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
           ),
         ];
         if (!title.trim())
-          throw new Error("Give your story a title before creating it.");
-        if (genres.length > 30) throw new Error("Use up to 30 genres.");
+          throw new Error("请先填写作品名称。");
+        if (genres.length > 30) throw new Error("最多填写 30 个题材。");
         if (language.trim().length < 2)
-          throw new Error("Enter a language code such as zh-CN or en.");
+          throw new Error("请输入语言代码，例如 zh-CN 或 en。");
         const { data } = await api<Novel>("/novels", {
           method: "POST",
           headers: csrfHeaders(),
@@ -134,7 +134,7 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
           method: "POST",
           headers: csrfHeaders(),
           body: JSON.stringify({
-            title: chapterTitle.trim() || "Chapter 1",
+            title: chapterTitle.trim() || "第一章",
             chapter_number: 1,
             status: "draft",
           }),
@@ -145,7 +145,7 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Creation failed. Your inputs are still here.",
+          : "创建失败，输入内容已保留。",
       );
       busyRef.current = false;
       setBusy(false);
@@ -168,7 +168,7 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
   return (
     <div className="modal-backdrop">
       <div
-        className="settings-dialog"
+        className="settings-dialog onboarding-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-title"
@@ -178,13 +178,13 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
       >
         <header className="dialog-header">
           <div>
-            <p className="eyebrow">A new beginning · {step + 1} of 3</p>
-            <h1 id="onboarding-title">Start your story</h1>
+            <p className="eyebrow">新建作品 · {step + 1} of 3</p>
+            <h1 id="onboarding-title">新建作品</h1>
           </div>
           <button
             className="icon-button"
             type="button"
-            title="Close project setup"
+            title="关闭新建向导"
             disabled={busy}
             onClick={() => finish(savedNovel.current || undefined)}
           >
@@ -192,18 +192,18 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
           </button>
         </header>
         <div className="dialog-content">
-          <form className="settings-form" onSubmit={advance} aria-busy={busy}>
+          <form className="settings-form" onSubmit={advance} aria-busy={busy}><ol className="wizard-steps" aria-label="新建作品步骤">{["故事定位", "首章方向", "确认创建"].map((label, index) => <li key={label} aria-current={step === index ? "step" : undefined}>{index + 1} {label}</li>)}</ol>
             <p id="onboarding-description" className="muted small">
               {step === 0
-                ? "Begin with a title and a single idea. You can develop the rest as you write."
+                ? "先给作品一个名称，写下一句话构思。其他内容可以边写边完善。"
                 : step === 1
-                  ? "Give the opening a direction, or leave the first chapter for later."
-                  : "Review your starting point. Everything here comes from you."}
+                  ? "确定开篇方向，也可以稍后再添加第一章。"
+                  : "确认作品信息，创建后即可进入书稿。"}
             </p>
             {step === 0 && (
               <>
                 <label>
-                  Story title
+                  作品名称
                   <input
                     autoComplete="off"
                     required
@@ -213,37 +213,37 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
                   />
                 </label>
                 <label>
-                  Premise{" "}
+                  一句话构思{" "}
                   <span className="muted">
-                    Optional · one sentence is enough
+                    可选，一句话即可
                   </span>
                   <textarea
                     rows={4}
                     maxLength={20000}
                     value={premise}
                     onChange={(event) => setPremise(event.target.value)}
-                    placeholder="Who wants what, and what stands in their way?"
+                    placeholder="谁想达成什么？又有什么阻碍？"
                   />
                 </label>
                 <div className="form-columns">
                   <label>
-                    Genres{" "}
-                    <span className="muted">Optional · comma separated</span>
+                    题材{" "}
+                    <span className="muted">可选，逗号分隔</span>
                     <input
                       value={genre}
                       onChange={(event) => setGenre(event.target.value)}
-                      placeholder="Fantasy, mystery"
+                      placeholder="奇幻，悬疑"
                     />
                   </label>
                   <label>
-                    Writing language
+                    写作语言
                     <input
                       required
                       minLength={2}
                       maxLength={32}
                       value={language}
                       onChange={(event) => setLanguage(event.target.value)}
-                      placeholder="zh-CN or en"
+                      placeholder="例如 zh-CN 或 en"
                     />
                   </label>
                 </div>
@@ -257,12 +257,12 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
                     checked={createChapter}
                     onChange={(event) => setCreateChapter(event.target.checked)}
                   />{" "}
-                  Create an empty first chapter
+                  同时创建第一章空白书稿
                 </label>
                 {createChapter && (
                   <>
                     <label>
-                      First chapter title
+                      第一章标题
                       <input
                         required
                         maxLength={200}
@@ -273,19 +273,18 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
                       />
                     </label>
                     <label>
-                      First chapter goal{" "}
-                      <span className="muted">Optional · planning note</span>
+                      首章目标{" "}
+                      <span className="muted">可选，作为规划笔记</span>
                       <textarea
                         rows={4}
                         maxLength={20000}
                         value={chapterGoal}
                         onChange={(event) => setChapterGoal(event.target.value)}
-                        placeholder="Introduce the keeper, reveal the missing letter, leave a question open…"
+                        placeholder="引入守塔人，揭开失踪信件，留下一个悬念……"
                       />
                     </label>
                     <p className="field-hint">
-                      Your goal is saved in project writing preferences. The
-                      manuscript begins empty.
+                      目标会保存为作品偏好，正文保持空白。
                     </p>
                   </>
                 )}
@@ -293,36 +292,34 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
             )}
             {step === 2 && (
               <>
-                <section className="server-card" aria-label="Project review">
+                <section className="server-card" aria-label="确认作品信息">
                   <div className="server-heading">
                     <strong>{title}</strong>
                     <span className="badge">{language}</span>
                   </div>
                   <p className="small">
                     {premise.trim() ||
-                      "No premise yet — you can develop it later."}
+                      "尚未填写构思，可稍后完善。"}
                   </p>
                   {genre.trim() && (
-                    <p className="small muted">Genres: {genre}</p>
+                    <p className="small muted">题材： {genre}</p>
                   )}
                   <p className="small">
                     {createChapter
-                      ? `First chapter: ${chapterTitle.trim() || "Chapter 1"}`
-                      : "Project only · add chapters when you are ready"}
+                      ? `首章：${chapterTitle.trim() || "第一章"}`
+                      : "仅创建项目，之后再添加章节"}
                   </p>
                   {createChapter && chapterGoal.trim() && (
-                    <p className="small">Opening goal: {chapterGoal}</p>
+                    <p className="small">开篇目标： {chapterGoal}</p>
                   )}
                 </section>
                 <div className="info-card">
                   <BookOpen size={20} />
                   <div>
-                    <strong>A starting point, in your own words</strong>
+                    <strong>从你的构思开始</strong>
                     <p>
-                      This creates your project
-                      {createChapter ? " and an empty draft chapter" : ""}. No
-                      AI request is made and no story facts are approved
-                      automatically.
+                      将创建作品
+                      {createChapter ? "和空白章节" : ""}。不会调用模型，也不会自动批准任何设定。
                     </p>
                   </div>
                 </div>
@@ -330,8 +327,7 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
             )}
             {projectSaved && error && (
               <p className="success-notice" role="status">
-                <Check size={16} /> Your project is saved. The first chapter
-                could not be created. Retry, or continue and add it later.
+                <Check size={16} /> 作品已保存，但首章创建失败。可以重试，也可以先进入作品稍后添加。
               </p>
             )}
             {error && (
@@ -347,7 +343,7 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
                   disabled={busy}
                   onClick={() => finish(savedNovel.current || undefined)}
                 >
-                  Continue without chapter
+                  先进入作品
                 </button>
               ) : (
                 <button
@@ -356,7 +352,7 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
                   disabled={busy}
                   onClick={() => (step === 0 ? finish() : setStep(step - 1))}
                 >
-                  {step === 0 ? "Cancel" : "Back"}
+                  {step === 0 ? "取消" : "上一步"}
                 </button>
               )}
               <button
@@ -372,17 +368,17 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
                   <>
                     <LoaderCircle size={15} className="spin" />{" "}
                     {projectSaved
-                      ? "Creating first chapter…"
-                      : "Creating project…"}
+                      ? "正在创建第一章…"
+                      : "正在创建作品…"}
                   </>
                 ) : step < 2 ? (
                   <>
-                    Continue <ArrowRight size={15} />
+                    下一步 <ArrowRight size={15} />
                   </>
                 ) : projectSaved ? (
-                  "Retry first chapter"
+                  "重试创建第一章"
                 ) : (
-                  "Create project"
+                  "创建作品"
                 )}
               </button>
             </div>
@@ -395,7 +391,7 @@ function OnboardingForm({ onClose, onCreated }: Omit<Props, "open">) {
                   setStep(2);
                 }}
               >
-                Skip first chapter for now
+                暂时跳过第一章
               </button>
             )}
           </form>

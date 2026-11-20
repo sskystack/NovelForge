@@ -37,6 +37,8 @@ jobs:
         run: uv run --project apps/api --extra dev python scripts/smoke_desktop.py --sidecar apps/desktop/src-tauri/binaries/novelforge-api-${{ matrix.target }}
       - run: npm exec -- tauri build --bundles ${{ matrix.bundle }} --target ${{ matrix.target }}
         working-directory: apps/desktop
+      - name: Verify DMG icon resources and nested signatures
+        run: python scripts/verify_macos_bundle.py apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg
       - uses: actions/upload-artifact@v4
         with:
           name: novelforge-${{ matrix.target }}

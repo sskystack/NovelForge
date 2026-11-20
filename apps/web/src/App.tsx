@@ -118,7 +118,7 @@ function AuthScreen({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Unable to sign in",
+          : "登录失败，请检查输入后重试。",
       );
     } finally {
       setBusy(false);
@@ -130,37 +130,36 @@ function AuthScreen({
         <div className="brand-mark">
           <BookOpen size={23} /> NovelForge
         </div>
-        <p className="eyebrow">A quieter space for a larger story</p>
+        <p className="eyebrow">NovelForge · macOS</p>
         <h2>
-          Your world.
+          专注故事，
           <br />
-          One chapter
+          从这一章
           <br />
-          <em>at a time.</em>
+          <em>继续。</em>
         </h2>
         <p>
-          A writing desk for the manuscript, the details, and everything still
-          waiting to be imagined.
+          在本地整理长篇书稿，检索故事资料，逐步审核助手建议。
         </p>
         <div className="auth-principles">
           <span>
-            <FileText size={16} /> Versioned chapters
+            <FileText size={16} /> 版本记录
           </span>
           <span>
-            <ShieldCheck size={16} /> Author-approved changes
+            <ShieldCheck size={16} /> 作者审核
           </span>
         </div>
       </section>
       <section className="auth-card">
-        <span className="badge">LOCAL WRITING WORKSPACE</span>
-        <h1>{register ? "Create your workspace" : "Welcome back"}</h1>
+        <span className="badge">本地创作工作空间</span>
+        <h1>{register ? "创建本地账户" : "登录工作空间"}</h1>
         <p className="muted">
-          Keep every chapter grounded in your approved story.
+          书稿、设定与创作助手，都在这里。
         </p>
         <form onSubmit={submit}>
           {register && (
             <label>
-              Display name
+              显示名称
               <input
                 autoComplete="name"
                 value={displayName}
@@ -169,7 +168,7 @@ function AuthScreen({
             </label>
           )}
           <label>
-            Email
+            邮箱
             <input
               type="email"
               autoComplete="email"
@@ -179,7 +178,7 @@ function AuthScreen({
             />
           </label>
           <label>
-            Password
+            密码
             <input
               type="password"
               autoComplete={register ? "new-password" : "current-password"}
@@ -191,8 +190,7 @@ function AuthScreen({
           </label>
           {register && (
             <p className="field-hint">
-              Use at least 12 characters. Your account belongs to this local
-              service.
+              密码至少 12 个字符。账户保存在本地服务。
             </p>
           )}
           {error && (
@@ -201,7 +199,7 @@ function AuthScreen({
             </p>
           )}
           <button className="primary wide" type="submit" disabled={busy}>
-            {busy ? "Working…" : register ? "Create account" : "Sign in"}
+            {busy ? "处理中…" : register ? "创建账户" : "登录"}
             <ArrowUpRight size={16} />
           </button>
         </form>
@@ -209,9 +207,9 @@ function AuthScreen({
           className="link-button"
           onClick={() => setRegister((value) => !value)}
         >
-          {register ? "Already have an account? Sign in" : "Create an account"}
+          {register ? "已有账户？登录" : "注册本地账户"}
         </button>
-        <p className="auth-footnote">Your story stays under your control.</p>
+        <p className="auth-footnote">正文与设定始终由你决定。</p>
       </section>
     </main>
   );
@@ -232,10 +230,10 @@ function RichEditor({
     content: value,
     editorProps: {
       attributes: {
-        "aria-label": "Chapter manuscript",
+        "aria-label": "章节正文",
         role: "textbox",
         "aria-multiline": "true",
-        "data-placeholder": "Every story begins with a sentence…",
+        "data-placeholder": "从第一句话开始……",
       },
     },
     onUpdate: ({ editor: current }) =>
@@ -326,7 +324,7 @@ function Workspace({
   const canNavigate = () => {
     if (dirtyRef.current || mutation.current) {
       setError(
-        "Save your current changes before switching, creating, or signing out.",
+        "请先保存当前修改，再切换章节、创建作品或退出。",
       );
       return false;
     }
@@ -372,7 +370,7 @@ function Workspace({
         );
         if (!latest)
           throw new Error(
-            "The chapter changed while loading. Select it again to reload.",
+            "章节在加载时已更新，请重新选择章节。",
           );
         setChapter(detail.data);
         setEtag(
@@ -401,7 +399,7 @@ function Workspace({
           setError(
             requestError instanceof Error
               ? requestError.message
-              : "Could not load chapter",
+              : "无法加载章节。",
           );
       } finally {
         if (requestId === selection.current) setSelecting(false);
@@ -441,7 +439,7 @@ function Workspace({
           setError(
             requestError instanceof Error
               ? requestError.message
-              : "Could not load project",
+              : "无法加载作品。",
           );
       } finally {
         if (requestId === selection.current) setSelecting(false);
@@ -467,7 +465,7 @@ function Workspace({
           setError(
             requestError instanceof Error
               ? requestError.message
-              : "Unable to load projects",
+              : "无法加载作品列表。",
           );
       })
       .finally(() => {
@@ -494,7 +492,7 @@ function Workspace({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not create project",
+          : "无法创建作品。",
       );
     }
   };
@@ -503,7 +501,7 @@ function Workspace({
     if (!novel || !canNavigate()) return;
     const chapterNumber =
       Math.max(0, ...chapters.map((item) => item.chapter_number || 0)) + 1;
-    const title = `Chapter ${chapterNumber}`;
+    const title = `第 ${chapterNumber} 章`;
     try {
       const result = await api<Chapter>(`/novels/${novel.id}/chapters`, {
         method: "POST",
@@ -516,7 +514,7 @@ function Workspace({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not create chapter",
+          : "无法创建章节。",
       );
     }
   };
@@ -530,7 +528,7 @@ function Workspace({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not convert this chapter safely.",
+          : "无法安全转换当前内容，请保留原格式。",
       );
       return;
     }
@@ -569,7 +567,7 @@ function Workspace({
       setAnalysisProposals([]);
       if (revision === editRevision.current) {
         setDocumentDirty(false);
-        setNotice("Saved");
+        setNotice("已保存");
       }
       try {
         setVersions(
@@ -581,7 +579,7 @@ function Workspace({
         );
       } catch {
         setError(
-          "Your changes were saved, but version history could not refresh. Reload it before restoring a version.",
+          "正文已保存，但版本列表刷新失败。恢复历史前请重新加载。",
         );
       }
     } catch (requestError) {
@@ -590,11 +588,11 @@ function Workspace({
         requestError.message.includes("CHAPTER_VERSION_CONFLICT")
       )
         setError(
-          "This chapter changed elsewhere. Your local draft is preserved; reload the latest version before saving again.",
+          "章节已在其他位置更新。当前草稿已保留，请核对最新版本后再保存。",
         );
       else
         setError(
-          requestError instanceof Error ? requestError.message : "Save failed",
+          requestError instanceof Error ? requestError.message : "保存失败。",
         );
     } finally {
       mutation.current = false;
@@ -617,15 +615,15 @@ function Workspace({
           `"${result.data.current_version}"`,
       );
       await loadChapterFor(novel, result.data);
-      setNotice("Restored as a new version");
+      setNotice("历史内容已恢复为新版本。");
     } catch (requestError) {
       setError(
         requestError instanceof Error &&
           requestError.message.includes("CHAPTER_VERSION_CONFLICT")
-          ? "The chapter changed elsewhere. Reload before restoring."
+          ? "章节已被更新，请重新加载后再恢复历史。"
           : requestError instanceof Error
             ? requestError.message
-            : "Restore failed",
+            : "恢复失败。",
       );
     } finally {
       mutation.current = false;
@@ -656,7 +654,7 @@ function Workspace({
       if (result.data.status !== "succeeded")
         throw new Error(
           result.data.error_message ||
-            "Generation failed. Your manuscript was not changed.",
+            "生成失败，正文没有改动。",
         );
       setGeneration(result.data);
     } catch (requestError) {
@@ -664,7 +662,7 @@ function Workspace({
         setError(
           requestError instanceof Error
             ? requestError.message
-            : "Generation failed",
+            : "生成失败。",
         );
     } finally {
       if (requestId === selection.current) setBusyAI(false);
@@ -683,12 +681,12 @@ function Workspace({
       });
       setGeneration(null);
       await loadChapterFor(novel, chapter);
-      setNotice("Draft accepted as a new version");
+      setNotice("预览已采纳为正文新版本。");
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not accept draft",
+          : "无法采纳预览。",
       );
     } finally {
       mutation.current = false;
@@ -723,7 +721,7 @@ function Workspace({
         setError(
           requestError instanceof Error
             ? requestError.message
-            : "Analysis failed",
+            : "版本分析失败。",
         );
     } finally {
       if (requestId === selection.current) setBusyAI(false);
@@ -751,7 +749,7 @@ function Workspace({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not review proposal",
+          : "无法审核提案。",
       );
     }
   };
@@ -760,7 +758,7 @@ function Workspace({
     if (!novel || !chapter || !analysis || !canNavigate()) return;
     if (analysis.chapter_version_id !== versions[0]?.id) {
       setError(
-        "This analysis belongs to an older version. Analyze the latest saved version again.",
+        "这份分析来自旧版本，请重新分析最新保存的正文。",
       );
       return;
     }
@@ -787,12 +785,12 @@ function Workspace({
           )
         ).data,
       );
-      setNotice("Summary accepted as a new chapter version");
+      setNotice("摘要已采纳为章节新版本。");
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not apply summary",
+          : "无法采纳摘要。",
       );
     } finally {
       mutation.current = false;
@@ -812,7 +810,7 @@ function Workspace({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not restart the local service",
+          : "本地服务无法重新启动。",
       );
     }
   };
@@ -824,14 +822,14 @@ function Workspace({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not sign out. Please retry.",
+          : "退出失败，请重试。",
       );
     }
   };
 
   const versionLabel = useMemo(
     () =>
-      chapter ? `Version ${chapter.current_version}` : "No chapter selected",
+      chapter ? `版本 ${chapter.current_version}` : "未选择章节",
     [chapter],
   );
   const plainText = useMemo(
@@ -860,7 +858,7 @@ function Workspace({
       }}
     >
       <a href="#main-content" className="skip-link">
-        Skip to writing workspace
+        跳到正文工作区
       </a>
       <header className="topbar">
         <div className="topbar-brand">
@@ -868,7 +866,7 @@ function Workspace({
             <BookOpen size={20} /> NovelForge
           </div>
           <span className="topbar-divider" />
-          <span className="workspace-label">The writing room</span>
+          <span className="workspace-label">创作工作台</span>
         </div>
         <div className="top-actions">
           <span className="service-label">
@@ -879,15 +877,15 @@ function Workspace({
             />
             <span>
               {serviceStatus === "ready"
-                ? "Local service"
+                ? "本地服务正常"
                 : serviceStatus === "checking"
-                  ? "Connecting…"
-                  : "Service offline"}
+                  ? "正在连接…"
+                  : "本地服务离线"}
             </span>
           </span>
           {serviceStatus === "unavailable" && (
             <button className="secondary" onClick={() => void reconnect()}>
-              Reconnect
+              重新连接
             </button>
           )}
           <button
@@ -895,22 +893,22 @@ function Workspace({
             onClick={() => setSettingsOpen(true)}
           >
             {provider === "mock"
-              ? "Mock provider"
+              ? "演示模型"
               : provider
-                ? "Model configured"
-                : "Set up AI"}
+                ? "模型已配置"
+                : "配置模型"}
           </button>
           <span className="user-label">{user.display_name || user.email}</span>
           <button
             className="icon-button"
-            title="Settings and connections"
+            title="设置与连接"
             onClick={() => setSettingsOpen(true)}
           >
             <Settings2 size={18} />
           </button>
           <button
             className="icon-button"
-            title="Sign out"
+            title="退出登录"
             onClick={() => void signOut()}
           >
             <LogOut size={17} />
@@ -918,13 +916,13 @@ function Workspace({
         </div>
       </header>
       <div className="workspace-grid">
-        <aside className="sidebar" aria-label="Story navigation">
+        <aside className="sidebar" aria-label="项目导航">
           <div className="sidebar-section">
             <div className="sidebar-heading">
-              <span>Your library</span>
+              <span>作品库</span>
               <button
                 className="icon-button"
-                title="New project"
+                title="新建作品"
                 onClick={() => {
                   if (canNavigate()) setOnboardingOpen(true);
                 }}
@@ -935,15 +933,15 @@ function Workspace({
             <form className="new-project" onSubmit={createNovel}>
               <input
                 id="new-project"
-                aria-label="New project title"
-                placeholder="Start a new story…"
+                aria-label="快速新建作品名称"
+                placeholder="快速新建作品…"
                 value={newTitle}
                 onChange={(event) => setNewTitle(event.target.value)}
               />
               <button
                 type="submit"
                 className="icon-button"
-                title="Create project"
+                title="创建作品"
                 disabled={!newTitle.trim()}
               >
                 <Plus size={15} />
@@ -952,6 +950,7 @@ function Workspace({
             <div className="project-list">
               {novels.map((item) => (
                 <button
+                  title={item.title}
                   className={`project-item ${novel?.id === item.id ? "selected" : ""}`}
                   key={item.id}
                   onClick={() => {
@@ -967,14 +966,14 @@ function Workspace({
           </div>
           {novel && (
             <>
-              <nav className="workspace-nav" aria-label="Workspace sections">
+              <nav className="workspace-nav" aria-label="工作区">
                 <button
                   className={view === "manuscript" ? "active" : ""}
                   aria-current={view === "manuscript" ? "page" : undefined}
                   onClick={() => setView("manuscript")}
                 >
                   <FileText size={17} />
-                  Manuscript<span>{chapters.length}</span>
+                  书稿<span>{chapters.length}</span>
                 </button>
                 <button
                   className={view === "knowledge" ? "active" : ""}
@@ -982,7 +981,7 @@ function Workspace({
                   onClick={() => setView("knowledge")}
                 >
                   <Library size={17} />
-                  Story knowledge
+                  知识与设定
                 </button>
                 <button
                   className={view === "agent" ? "active" : ""}
@@ -990,27 +989,28 @@ function Workspace({
                   onClick={() => setView("agent")}
                 >
                   <Bot size={18} />
-                  Agent studio
+                  创作助手
                 </button>
               </nav>
               <div className="chapter-navigation">
                 <div className="sidebar-heading">
-                  <span>Chapters</span>
+                  <span>章节目录</span>
                   <button
                     className="icon-button"
                     onClick={() => void createChapter()}
-                    title="Add chapter"
+                    title="添加章节"
                   >
                     <Plus size={16} />
                   </button>
                 </div>
-                <nav className="chapter-list" aria-label="Chapters">
+                <nav className="chapter-list" aria-label="章节目录">
                   {chapters.map((item) => (
                     <button
                       className={`chapter-item ${chapter?.id === item.id ? "active" : ""}`}
                       aria-current={
                         chapter?.id === item.id ? "true" : undefined
                       }
+                      title={item.title}
                       aria-label={`${item.chapter_number ? `${item.chapter_number}. ` : ""}${item.title}`}
                       key={item.id}
                       onClick={() => {
@@ -1033,7 +1033,7 @@ function Workspace({
                 </nav>
                 {!chapters.length && (
                   <p className="small muted">
-                    Give your story its first chapter.
+                    添加第一章，开始写作。
                   </p>
                 )}
               </div>
@@ -1042,18 +1042,18 @@ function Workspace({
           <footer className="sidebar-footer">
             <ShieldCheck size={16} />
             <span>
-              Every revision has a history.
-              <small>Your story, your final say.</small>
+              本地保存 · 版本可追溯
+              <small>所有改动由你审核。</small>
             </span>
           </footer>
         </aside>
         <div id="main-content" className="main-content" tabIndex={-1}>
           {view === "manuscript" || !novel ? (
-            <section className="editor-area" aria-label="Manuscript workspace">
+            <section className="editor-area" aria-label="书稿工作区">
               {loading || selecting ? (
                 <div className="empty-state" role="status">
                   <LoaderCircle className="spin" size={25} />
-                  <p>Loading workspace…</p>
+                  <p>正在加载作品…</p>
                 </div>
               ) : novel ? (
                 <>
@@ -1062,13 +1062,13 @@ function Workspace({
                       <BookOpen size={14} />
                       <span>{novel.title}</span>
                       <ChevronRight size={13} />
-                      <span>Manuscript</span>
+                      <span>书稿</span>
                     </div>
                     <div className="editor-view-actions">
                       <button
                         className={`icon-button ${focusMode ? "active" : ""}`}
                         title={
-                          focusMode ? "Exit focus mode" : "Enter focus mode"
+                          focusMode ? "退出专注模式" : "进入专注模式"
                         }
                         aria-pressed={focusMode}
                         onClick={() => setFocusMode((value) => !value)}
@@ -1077,7 +1077,7 @@ function Workspace({
                       </button>
                       <button
                         className={`icon-button inspector-toggle ${inspectorOpen ? "active" : ""}`}
-                        title="Toggle story inspector"
+                        title="打开故事检查器"
                         aria-expanded={inspectorOpen}
                         onClick={() => setInspectorOpen((value) => !value)}
                       >
@@ -1089,10 +1089,10 @@ function Workspace({
                     <div>
                       <p className="eyebrow">
                         {chapter
-                          ? `Chapter ${String(chapter.chapter_number || "—").padStart(2, "0")} / ${chapters.length}`
-                          : "A blank page, a new beginning"}
+                          ? `第 ${String(chapter.chapter_number || "—").padStart(2, "0")} 章 / 共 ${chapters.length} 章`
+                          : "尚未创建章节"}
                       </p>
-                      <h1>{chapter?.title || "No chapters yet"}</h1>
+                      <h1 title={chapter?.title}>{chapter?.title || "还没有章节"}</h1>
                     </div>
                     <div className="editor-actions">
                       <span
@@ -1100,18 +1100,18 @@ function Workspace({
                         role="status"
                       >
                         {saving
-                          ? "Saving…"
+                          ? "正在保存…"
                           : dirty
-                            ? "Unsaved changes"
+                            ? "有未保存修改"
                             : notice || versionLabel}
                       </span>
                       <button
                         className="primary"
-                        title="Save (⌘/Ctrl+S)"
+                        title="保存（⌘S）"
                         disabled={!dirty || !chapter || saving}
                         onClick={() => void save()}
                       >
-                        <Save size={15} /> Save
+                        <Save size={15} /> 保存
                       </button>
                     </div>
                   </div>
@@ -1121,14 +1121,14 @@ function Workspace({
                         <div
                           className="mode-toggle"
                           role="group"
-                          aria-label="Editor mode"
+                          aria-label="编辑格式"
                         >
                           <button
                             className={mode === "rich" ? "active" : ""}
                             aria-pressed={mode === "rich"}
                             onClick={() => switchMode("rich")}
                           >
-                            Rich text
+                            富文本
                           </button>
                           <button
                             className={mode === "markdown" ? "active" : ""}
@@ -1139,7 +1139,7 @@ function Workspace({
                           </button>
                         </div>
                         <span className="manuscript-meta">
-                          {wordCount.toLocaleString()} words & characters
+                          {wordCount.toLocaleString()} 字 / 词
                         </span>
                       </div>
                       <div className="manuscript-page">
@@ -1155,14 +1155,14 @@ function Workspace({
                         ) : (
                           <textarea
                             className="markdown-editor"
-                            aria-label="Markdown source"
+                            aria-label="Markdown 源码"
                             value={markdown}
                             onChange={(event) => {
                               setMarkdown(event.target.value);
                               setDocumentDirty(true);
                               setNotice("");
                             }}
-                            placeholder="Every story begins with a sentence…"
+                            placeholder="从第一句话开始……"
                             spellCheck={false}
                           />
                         )}
@@ -1170,13 +1170,13 @@ function Workspace({
                       <footer className="editor-bottomline">
                         <span>
                           {mode === "rich"
-                            ? "Rich text manuscript"
-                            : "Markdown source"}
+                            ? "富文本正文"
+                            : "Markdown 源码"}
                         </span>
                         <span>
                           {dirty
-                            ? "Draft held in this editor · save before leaving"
-                            : "All changes saved to the local service"}
+                            ? "当前草稿尚未保存"
+                            : "所有修改已保存到本地"}
                         </span>
                       </footer>
                     </>
@@ -1184,12 +1184,12 @@ function Workspace({
                   {!chapter && (
                     <div className="chapter-empty">
                       <FileText size={36} strokeWidth={1} />
-                      <p>A place for the first sentence.</p>
+                      <p>为故事写下第一句话。</p>
                       <button
                         className="primary create-first"
                         onClick={() => void createChapter()}
                       >
-                        <Plus size={16} /> Create chapter
+                        <Plus size={16} /> 创建章节
                       </button>
                     </div>
                   )}
@@ -1199,36 +1199,34 @@ function Workspace({
                       disabled={busyAI || dirty || saving || !chapter}
                       onClick={() => void generateDraft()}
                     >
-                      <Sparkles size={15} /> Generate preview
+                      <Sparkles size={15} /> 生成预览
                     </button>
                     <button
                       className="secondary"
                       disabled={busyAI || dirty || saving || !versions[0]}
                       onClick={() => void analyzeLatest()}
                     >
-                      <FileText size={15} /> Analyze version
+                      <FileText size={15} /> 分析当前版本
                     </button>
                     {busyAI && (
                       <span className="small muted" role="status">
-                        Preparing for review…
+                        正在准备审核…
                       </span>
                     )}
                   </div>
                   {generation?.status === "succeeded" && (
                     <section className="review-panel">
                       <div className="review-heading">
-                        <h2>Generated draft</h2>
+                        <h2>生成内容预览</h2>
                         <span>
-                          {generation.output.source_ids?.length || 0} context
-                          sources
+                          {generation.output.source_ids?.length || 0} 条上下文来源
                         </span>
                       </div>
                       <p className="small muted">
                         {provider === "mock"
-                          ? "Mock provider output · deterministic demonstration. "
+                          ? "演示模型输出，仅用于流程测试。"
                           : ""}
-                        Review this preview before accepting a new chapter
-                        version.
+                        审核后采纳，才会创建正文新版本。
                       </p>
                       <pre>{generation.output.markdown}</pre>
                       <div className="review-actions">
@@ -1237,11 +1235,11 @@ function Workspace({
                           disabled={dirty || saving}
                           onClick={() => void acceptDraft()}
                         >
-                          <Check size={15} /> Accept as new version
+                          <Check size={15} /> 采纳为新版本
                         </button>
                         <button
                           className="icon-button"
-                          title="Discard preview"
+                          title="丢弃预览"
                           onClick={() => setGeneration(null)}
                         >
                           <X size={16} />
@@ -1252,9 +1250,9 @@ function Workspace({
                   {analysis && (
                     <section className="review-panel">
                       <div className="review-heading">
-                        <h2>Version analysis</h2>
+                        <h2>版本分析</h2>
                         <span>
-                          {analysis.proposal_ids.length} pending proposals
+                          {analysis.proposal_ids.length} 条待审提案
                         </span>
                       </div>
                       <p className="analysis-summary">
@@ -1266,7 +1264,7 @@ function Workspace({
                           disabled={dirty || saving}
                           onClick={() => void applySummaryCandidate()}
                         >
-                          <Check size={15} /> Apply summary
+                          <Check size={15} /> 采纳摘要
                         </button>
                       </div>
                       {analysisProposals.map((proposal) => (
@@ -1279,14 +1277,14 @@ function Workspace({
                               {JSON.stringify(proposal.payload, null, 2)}
                             </pre>
                             <small>
-                              Evidence · chapter version{" "}
+                              依据 · 章节版本{" "}
                               {String(proposal.evidence.version_number || "")}
                             </small>
                           </div>
                           <div className="proposal-actions">
                             <button
                               className="icon-button"
-                              title="Approve proposal"
+                              title="批准提案"
                               onClick={() =>
                                 void decideAnalysisProposal(proposal, "approve")
                               }
@@ -1295,7 +1293,7 @@ function Workspace({
                             </button>
                             <button
                               className="icon-button"
-                              title="Reject proposal"
+                              title="拒绝提案"
                               onClick={() =>
                                 void decideAnalysisProposal(proposal, "reject")
                               }
@@ -1313,10 +1311,10 @@ function Workspace({
                   <div className="empty-book">
                     <BookOpen size={35} strokeWidth={1.2} />
                   </div>
-                  <p className="eyebrow">A world waiting to be written</p>
-                  <h1>Create your first project</h1>
+                  <p className="eyebrow">开始创作</p>
+                  <h1>创建第一部作品</h1>
                   <p>
-                    Your chapters and story data will stay in one workspace.
+                    用一个项目收纳书稿、资料与创作记录。
                   </p>
                   <button
                     className="primary"
@@ -1324,7 +1322,7 @@ function Workspace({
                       if (canNavigate()) setOnboardingOpen(true);
                     }}
                   >
-                    <Plus size={16} /> Name your story
+                    <Plus size={16} /> 新建作品向导
                   </button>
                 </div>
               )}
@@ -1339,15 +1337,16 @@ function Workspace({
             />
           )}
         </div>
+        {inspectorOpen && <button className="inspector-backdrop" aria-label="关闭故事检查器遮罩" onClick={() => setInspectorOpen(false)} />}
         <aside
           className={`history-panel ${view !== "manuscript" ? "context-panel" : ""}`}
-          aria-label="Story inspector"
+          aria-label="故事检查器"
         >
           <div className="inspector-header">
-            <span className="sidebar-heading">Story inspector</span>
+            <span className="sidebar-heading">故事检查器</span>
             <button
               className="icon-button inspector-close"
-              title="Close story inspector"
+              title="关闭故事检查器"
               onClick={() => setInspectorOpen(false)}
             >
               <X size={16} />
@@ -1356,7 +1355,7 @@ function Workspace({
           <div
             className="inspector-tabs"
             role="tablist"
-            aria-label="Inspector sections"
+            aria-label="检查器分类"
           >
             <button
               role="tab"
@@ -1364,7 +1363,7 @@ function Workspace({
               onClick={() => setInspectorTab("history")}
             >
               <History size={14} />
-              History
+              版本历史
             </button>
             <button
               role="tab"
@@ -1372,22 +1371,21 @@ function Workspace({
               onClick={() => setInspectorTab("assistant")}
             >
               <Sparkles size={14} />
-              Assistant
+              写作助手
             </button>
           </div>
           {inspectorTab === "history" ? (
             <>
               <div className="sidebar-heading history-title">
-                <span>Version history</span>
+                <span>版本历史</span>
                 <span>{versions.length}</span>
               </div>
               <p className="inspector-description">
-                Return to an earlier moment. Restoring always creates a new
-                version.
+                恢复历史会创建新版本，当前内容始终可追溯。
               </p>
               {versions.length === 0 && (
                 <p className="muted small">
-                  Save a chapter to start its history.
+                  章节版本会显示在这里。
                 </p>
               )}
               {versions.map((version) => (
@@ -1398,9 +1396,9 @@ function Workspace({
                   <div className="version-timeline-dot" />
                   <div>
                     <strong>
-                      Version {version.version_number}
+                      版本 {version.version_number}
                       {version.version_number === chapter?.current_version && (
-                        <span className="current-label">Current</span>
+                        <span className="current-label">当前</span>
                       )}
                     </strong>
                     <small>
@@ -1413,14 +1411,14 @@ function Workspace({
                     </small>
                     <small>
                       {version.content_format === "tiptap"
-                        ? "Rich text"
+                        ? "富文本"
                         : "Markdown"}
                     </small>
                   </div>
                   <button
                     className="icon-button"
-                    title={`Restore version ${version.version_number}`}
-                    aria-label={`Restore version ${version.version_number}`}
+                    title={`恢复版本 ${version.version_number}`}
+                    aria-label={`恢复版本 ${version.version_number}`}
                     disabled={
                       !chapter ||
                       dirty ||
@@ -1440,18 +1438,17 @@ function Workspace({
                 <Sparkles size={22} strokeWidth={1.5} />
               </div>
               <h2>
-                A little help.
+                创作助手
                 <br />
-                The final word is yours.
+                由你把关。
               </h2>
               <p>
-                Generate a preview or analyze a saved version using the controls
-                below your manuscript.
+                生成续写预览，或分析已保存版本。审核之后再决定是否采纳。
               </p>
               <div className="inspector-note">
                 <ShieldCheck size={16} />
                 <span>
-                  AI suggestions stay separate until you approve them.
+                  建议与正文分开保存，批准后才应用。
                 </span>
               </div>
               <button
@@ -1462,13 +1459,13 @@ function Workspace({
                   setInspectorOpen(false);
                 }}
               >
-                <Bot size={16} /> Open Agent studio <ArrowUpRight size={14} />
+                <Bot size={16} /> 进入创作助手 <ArrowUpRight size={14} />
               </button>
               <button
                 className="text-button"
                 onClick={() => setSettingsOpen(true)}
               >
-                Configure models & tools
+                配置模型与工具
               </button>
             </div>
           )}
@@ -1476,8 +1473,8 @@ function Workspace({
             <ShieldCheck size={16} />
             <span>
               {dirty
-                ? "Save your draft before restoring a version."
-                : "Your manuscript is always author-controlled."}
+                ? "请先保存草稿，再恢复历史版本。"
+                : "正文始终由作者控制。"}
             </span>
           </div>
         </aside>
@@ -1487,7 +1484,7 @@ function Workspace({
           <span>{error}</span>
           <button
             className="icon-button"
-            title="Dismiss error"
+            title="关闭错误提示"
             onClick={() => setError("")}
           >
             <X size={16} />
@@ -1533,7 +1530,7 @@ export function App() {
           setStartupError(
             error instanceof Error
               ? error.message
-              : "Could not start NovelForge",
+              : "无法启动 NovelForge。",
           );
       })
       .finally(() => {
@@ -1552,14 +1549,14 @@ export function App() {
   if (!checked)
     return (
       <main className="auth-shell">
-        <p className="muted">Loading NovelForge…</p>
+        <p className="muted">正在启动 NovelForge…</p>
       </main>
     );
   if (startupError)
     return (
       <main className="auth-shell">
         <section className="auth-card">
-          <h1>Unable to start NovelForge</h1>
+          <h1>NovelForge 无法启动</h1>
           <p className="error" role="alert">
             {startupError}
           </p>
@@ -1571,7 +1568,7 @@ export function App() {
               setAttempt((value) => value + 1);
             }}
           >
-            Retry
+            重试
           </button>
         </section>
       </main>

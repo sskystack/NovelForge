@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <title>NovelForge — book and pen nib</title>
+  <rect x="64" y="64" width="896" height="896" rx="204" fill="#5368F4"/>
+  <path d="M240 326C336 306 423 335 482 392V734C405 681 332 661 240 680V326Z" fill="white"/>
+  <path d="M784 326C688 306 601 335 542 392V734C619 681 692 661 784 680V326Z" fill="white"/>
+  <path d="M512 234L571 320L541 392L512 418L483 392L453 320L512 234Z" fill="white"/>
+  <path d="M512 319V374M291 410C344 407 401 426 437 452M291 480C344 477 401 496 437 522M587 452C623 426 680 407 733 410M587 522C623 496 680 477 733 480" stroke="#5368F4" stroke-width="15" stroke-linecap="round"/>
+</svg>

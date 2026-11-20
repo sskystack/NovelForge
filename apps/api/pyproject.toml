@@ -1,6 +1,6 @@
 [project]
 name = "novelforge-api"
-version = "0.2.0"
+version = "0.2.1"
 description = "NovelForge modular monolith API"
 requires-python = ">=3.12"
 dependencies = [

@@ -46,7 +46,7 @@ const defaults: AISettings = {
   api_key_configured: false,
 };
 const errorText = (error: unknown) =>
-  error instanceof Error ? error.message : "The request failed. Please retry.";
+  error instanceof Error ? error.message : "请求失败，请重试。";
 
 export function SettingsDialog({
   onClose,
@@ -166,7 +166,7 @@ export function SettingsDialog({
       });
       setSettings(data);
       setApiKey("");
-      setNotice("Model settings saved locally.");
+      setNotice("模型设置已保存到本地。");
       onSaved();
     });
   };
@@ -177,7 +177,7 @@ export function SettingsDialog({
         { method: "POST", headers: csrfHeaders() },
       );
       if (!data.ok) throw new Error(data.message);
-      setNotice(data.message || "Connection successful.");
+      setNotice(data.message || "连接成功。");
     });
   const clearKey = () =>
     void runAction(async () => {
@@ -188,7 +188,7 @@ export function SettingsDialog({
       });
       setSettings(data);
       setApiKey("");
-      setNotice("Stored model key cleared.");
+      setNotice("已清除模型密钥。");
       onSaved();
     });
   const createServer = (event: FormEvent) => {
@@ -206,7 +206,7 @@ export function SettingsDialog({
         !Array.isArray(parsed) ||
         parsed.some((item) => typeof item !== "string")
       )
-        throw new Error("Arguments must be a JSON array of strings.");
+        throw new Error("启动参数必须是 JSON 字符串数组。");
       const { data } = await api<Server>("/mcp/servers", {
         method: "POST",
         headers: csrfHeaders(),
@@ -233,7 +233,7 @@ export function SettingsDialog({
       setArgs("[]");
       setAllowedTools("");
       setBearerToken("");
-      setNotice("Server added disabled. Review its tools before enabling it.");
+      setNotice("连接已添加且保持禁用，请先检查工具权限。");
     });
   };
   const serverAction = (server: Server, test: boolean) =>
@@ -259,7 +259,7 @@ export function SettingsDialog({
           headers: csrfHeaders(),
           body: JSON.stringify({ enabled: !server.enabled }),
         });
-        setNotice(`${server.name} ${server.enabled ? "disabled" : "enabled"}.`);
+        setNotice(`${server.name} ${server.enabled ? "已禁用" : "已启用"}.`);
       }
       setServers((await api<Server[]>("/mcp/servers")).data);
     });
@@ -300,12 +300,12 @@ export function SettingsDialog({
       >
         <header className="dialog-header">
           <div>
-            <p className="eyebrow">Your local workspace</p>
-            <h1 id="settings-title">Settings & connections</h1>
+            <p className="eyebrow">本地工作空间</p>
+            <h1 id="settings-title">设置与连接</h1>
           </div>
           <button
             className="icon-button"
-            title="Close settings"
+            title="关闭设置"
             onClick={onClose}
           >
             <X size={20} />
@@ -314,7 +314,7 @@ export function SettingsDialog({
         <div
           className="settings-tabs"
           role="tablist"
-          aria-label="Settings sections"
+          aria-label="设置分类"
         >
           <button
             role="tab"
@@ -324,7 +324,7 @@ export function SettingsDialog({
               setNotice("");
             }}
           >
-            <Settings2 size={16} /> Models
+            <Settings2 size={16} /> 模型服务
           </button>
           <button
             role="tab"
@@ -334,26 +334,26 @@ export function SettingsDialog({
               setNotice("");
             }}
           >
-            <Plug size={16} /> MCP servers
+            <Plug size={16} /> MCP 工具
           </button>
         </div>
         <div className="dialog-content">
           {loading ? (
             <p className="loading-state">
-              <LoaderCircle className="spin" size={18} /> Loading settings…
+              <LoaderCircle className="spin" size={18} /> 正在加载设置…
             </p>
           ) : !initialized ? (
             <div className="panel-empty">
               <Settings2 size={28} />
-              <h2>Settings are unavailable</h2>
+              <h2>暂时无法读取设置</h2>
               <p>
-                Reconnect to the local service, then load your saved settings.
+                请重新连接本地服务，再读取已保存配置。
               </p>
               <button
                 className="secondary"
                 onClick={() => setLoadAttempt((value) => value + 1)}
               >
-                Retry settings
+                重新加载设置
               </button>
             </div>
           ) : tab === "model" ? (
@@ -365,30 +365,30 @@ export function SettingsDialog({
                 <div>
                   <strong>
                     {settings.provider === "mock"
-                      ? "Mock provider · demonstration mode"
-                      : "Credentials stay in the local service"}
+                      ? "演示模型 · 流程测试模式"
+                      : "凭据保存在本地服务"}
                   </strong>
                   <p>
                     {settings.provider === "mock"
-                      ? "Responses are deterministic test output. Connect a provider for model-generated writing and reasoning."
-                      : "Stored keys are never returned to this interface. Leave the key field empty to keep your current key."}
+                      ? "当前回复为固定测试输出。连接模型服务后可进行真实生成。"
+                      : "已保存的密钥不会回传界面。留空表示保留现有密钥。"}
                   </p>
                 </div>
               </div>
               <label>
-                Provider
+                服务提供方
                 <select
                   value={settings.provider}
                   onChange={(event) =>
                     setSettings({ ...settings, provider: event.target.value })
                   }
                 >
-                  <option value="mock">Mock — deterministic demo</option>
-                  <option value="openai-compatible">OpenAI compatible</option>
+                  <option value="mock">演示模型 · 固定输出</option>
+                  <option value="openai-compatible">OpenAI 兼容服务</option>
                 </select>
               </label>
               <label>
-                Base URL
+                服务地址
                 <input
                   type="url"
                   value={settings.base_url}
@@ -400,7 +400,7 @@ export function SettingsDialog({
               </label>
               <div className="form-columns">
                 <label>
-                  Chat model
+                  对话模型
                   <input
                     required
                     value={settings.chat_model}
@@ -413,7 +413,7 @@ export function SettingsDialog({
                   />
                 </label>
                 <label>
-                  Embedding model
+                  嵌入模型
                   <input
                     required
                     value={settings.embedding_model}
@@ -427,11 +427,11 @@ export function SettingsDialog({
                 </label>
               </div>
               <label>
-                API key{" "}
+                API 密钥{" "}
                 <span className="muted">
                   {settings.api_key_configured
-                    ? "A key is configured"
-                    : "No key configured"}
+                    ? "已保存密钥"
+                    : "尚未配置密钥"}
                 </span>
                 <input
                   type="password"
@@ -439,8 +439,8 @@ export function SettingsDialog({
                   value={apiKey}
                   placeholder={
                     settings.api_key_configured
-                      ? "Leave empty to keep stored key"
-                      : "Enter a provider key"
+                      ? "留空保留现有密钥"
+                      : "输入服务密钥"
                   }
                   onChange={(event) => setApiKey(event.target.value)}
                 />
@@ -452,11 +452,11 @@ export function SettingsDialog({
                   disabled={busy}
                   onClick={clearKey}
                 >
-                  Clear stored model key
+                  清除已保存的模型密钥
                 </button>
               )}
               <label>
-                Request timeout (seconds)
+                请求超时（秒）
                 <input
                   type="number"
                   min={1}
@@ -477,10 +477,10 @@ export function SettingsDialog({
                   disabled={busy}
                   onClick={testModel}
                 >
-                  Test saved connection
+                  测试已保存连接
                 </button>
                 <button className="primary" disabled={busy}>
-                  <Check size={15} /> Save model settings
+                  <Check size={15} /> 保存模型设置
                 </button>
               </div>
             </form>
@@ -489,17 +489,15 @@ export function SettingsDialog({
               <div className="info-card">
                 <Plug size={20} />
                 <div>
-                  <strong>Connect trusted tools, deliberately</strong>
+                  <strong>连接可信工具</strong>
                   <p>
-                    Only allow the tools your story needs. Testing a stdio
-                    server launches its configured local command. New servers
-                    start disabled.
+                    新连接默认禁用。只授权需要的工具；测试 stdio 会启动配置的本地命令。
                   </p>
                 </div>
               </div>
               <div className="server-list">
                 {servers.length === 0 && (
-                  <p className="muted small">No MCP servers connected.</p>
+                  <p className="muted small">尚未添加 MCP 连接。</p>
                 )}
                 {servers.map((server) => (
                   <article className="server-card" key={server.id}>
@@ -507,8 +505,8 @@ export function SettingsDialog({
                       <strong>{server.name}</strong>
                       <span className="badge">
                         {server.enabled
-                          ? server.status || "enabled"
-                          : "disabled"}
+                          ? server.status || "已启用"
+                          : "已禁用"}
                       </span>
                     </div>
                     <p className="small muted">
@@ -518,17 +516,17 @@ export function SettingsDialog({
                         : server.url}
                     </p>
                     <p className="small">
-                      Allowed tools:{" "}
+                      允许的工具：{" "}
                       {server.allowed_tools.length
                         ? server.allowed_tools.join(", ")
-                        : "none"}
+                        : "无"}
                     </p>
                     {server.transport === "streamable-http" && (
                       <p className="small muted">
-                        Bearer token:{" "}
+                        Bearer 令牌：{" "}
                         {server.bearer_token_configured
-                          ? "configured · hidden"
-                          : "not configured"}
+                          ? "已配置 · 不回显"
+                          : "未配置"}
                       </p>
                     )}
                     {server.last_error && (
@@ -537,11 +535,11 @@ export function SettingsDialog({
                     {discovered[server.id] && (
                       <div className="discovered-tools">
                         <p className="small muted">
-                          Discovered tools · select an explicit allowlist
+                          已发现工具 · 勾选允许执行的工具
                         </p>
                         {discovered[server.id].length === 0 && (
                           <p className="small muted">
-                            This server returned no tools.
+                            该服务没有返回工具。
                           </p>
                         )}
                         {discovered[server.id].map((tool) => (
@@ -555,7 +553,7 @@ export function SettingsDialog({
                             <span>
                               <strong>{tool.name}</strong>
                               <small>
-                                {tool.description || "No description supplied."}
+                                {tool.description || "未提供说明。"}
                               </small>
                             </span>
                           </label>
@@ -568,27 +566,27 @@ export function SettingsDialog({
                         disabled={busy}
                         onClick={() => serverAction(server, true)}
                       >
-                        Test connection
+                        测试连接
                       </button>
                       <button
                         className="text-button"
                         disabled={busy}
                         onClick={() => serverAction(server, false)}
                       >
-                        {server.enabled ? "Disable" : "Enable"} server
+                        {server.enabled ? "禁用" : "启用"} 连接
                       </button>
                       <button
                         className="text-button danger-text"
                         disabled={busy}
                         onClick={() => setDeletingServer(server.id)}
                       >
-                        Remove
+                        移除
                       </button>
                     </div>
                     {deletingServer === server.id && (
                       <div className="remove-confirmation">
                         <p>
-                          Remove this connection and its stored credentials?
+                          移除此连接及其保存的凭据？
                         </p>
                         <div className="review-actions">
                           <button
@@ -596,13 +594,13 @@ export function SettingsDialog({
                             disabled={busy}
                             onClick={() => deleteServer(server)}
                           >
-                            Remove server
+                            确认移除连接
                           </button>
                           <button
                             className="text-button"
                             onClick={() => setDeletingServer(null)}
                           >
-                            Keep server
+                            保留连接
                           </button>
                         </div>
                       </div>
@@ -615,10 +613,10 @@ export function SettingsDialog({
                 onSubmit={createServer}
               >
                 <h2>
-                  <Plus size={17} /> Add a server
+                  <Plus size={17} /> 添加 MCP 连接
                 </h2>
                 <label>
-                  Server name
+                  连接名称
                   <input
                     required
                     value={serverName}
@@ -626,21 +624,21 @@ export function SettingsDialog({
                   />
                 </label>
                 <label>
-                  Transport
+                  传输方式
                   <select
                     value={transport}
                     onChange={(event) =>
                       setTransport(event.target.value as Server["transport"])
                     }
                   >
-                    <option value="stdio">Local command · stdio</option>
+                    <option value="stdio">本地命令 · stdio</option>
                     <option value="streamable-http">Streamable HTTP</option>
                   </select>
                 </label>
                 {transport === "stdio" ? (
                   <>
                     <label>
-                      Command
+                      启动命令
                       <input
                         required
                         value={command}
@@ -649,7 +647,7 @@ export function SettingsDialog({
                       />
                     </label>
                     <label>
-                      Arguments (JSON array)
+                      启动参数（JSON 数组）
                       <input
                         value={args}
                         onChange={(event) => setArgs(event.target.value)}
@@ -660,7 +658,7 @@ export function SettingsDialog({
                 ) : (
                   <>
                     <label>
-                      Server URL
+                      服务地址
                       <input
                         type="url"
                         required
@@ -670,19 +668,19 @@ export function SettingsDialog({
                       />
                     </label>
                     <label>
-                      Bearer token (optional, write only)
+                      Bearer 令牌（可选，仅写入）
                       <input
                         type="password"
                         autoComplete="new-password"
                         value={bearerToken}
                         onChange={(event) => setBearerToken(event.target.value)}
-                        placeholder="Stored locally; never returned to this interface"
+                        placeholder="仅保存在本地，不回显到界面"
                       />
                     </label>
                   </>
                 )}
                 <label>
-                  Allowed tools (comma separated)
+                  允许的工具（逗号分隔）
                   <input
                     value={allowedTools}
                     onChange={(event) => setAllowedTools(event.target.value)}
@@ -690,7 +688,7 @@ export function SettingsDialog({
                   />
                 </label>
                 <button className="secondary" disabled={busy}>
-                  <Plus size={15} /> Add disabled server
+                  <Plus size={15} /> 添加为禁用连接
                 </button>
               </form>
             </section>
@@ -708,7 +706,7 @@ export function SettingsDialog({
           )}
           {busy && (
             <p className="muted small" role="status">
-              Working…
+              处理中…
             </p>
           )}
         </div>

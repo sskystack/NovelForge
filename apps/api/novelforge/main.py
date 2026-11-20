@@ -52,7 +52,7 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
 
     application = FastAPI(
         title="NovelForge API",
-        version="0.2.0",
+        version="0.2.1",
         lifespan=lifespan,
     )
     application.state.settings = app_settings

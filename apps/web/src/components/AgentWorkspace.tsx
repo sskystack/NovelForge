@@ -47,11 +47,12 @@ type Run = {
   created_at: string;
 };
 const activeStates = new Set(["queued", "running", "waiting_approval"]);
-const statusLabel = (status: string) => status.replaceAll("_", " ");
+const runLabels: Record<string, string> = {queued:"排队中",running:"执行中",waiting_approval:"等待审批",succeeded:"已完成",failed:"失败",cancelled:"已取消",interrupted:"已中断",rejected:"已拒绝",pending:"待执行"};
+const statusLabel = (status: string) => runLabels[status] || status;
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
-    : "The request could not be completed.";
+    : "请求失败，请重试。";
 
 export function SourceList({ sources }: { sources: Source[] }) {
   return (
@@ -64,21 +65,21 @@ export function SourceList({ sources }: { sources: Source[] }) {
           <summary>
             <span className="source-number">{index + 1}</span>
             <span>
-              {source.title || "Story source"}
+              {source.title || "故事来源"}
               <small>
                 {source.source_type?.replaceAll("_", " ") || "knowledge"} ·
-                revision {source.source_revision ?? "—"}
+                修订 {source.source_revision ?? "—"}
               </small>
             </span>
             <ChevronDown size={14} />
           </summary>
-          <p>{source.content || "No source excerpt returned."}</p>
+          <p>{source.content || "未返回来源摘要。"}</p>
           <small className="source-id">
-            Source{" "}
+            来源{" "}
             {source.source_id ||
               source.document_id ||
               source.chunk_id ||
-              "identifier unavailable"}
+              "无来源标识"}
           </small>
         </details>
       ))}
@@ -220,15 +221,15 @@ export function AgentWorkspace({
     >
       <header className="section-header">
         <div>
-          <p className="eyebrow">A thoughtful second pair of eyes</p>
-          <h1 id="agent-title">Agent studio</h1>
+          <p className="eyebrow">可追溯的创作协作</p>
+          <h1 id="agent-title">创作助手</h1>
           <p className="muted">
-            Research your story, trace every action, and approve changes.
+            检索故事，核对细节，逐步审核改动。
           </p>
         </div>
         <button
           className="icon-button"
-          title="Refresh tasks"
+          title="刷新任务"
           onClick={() => void refresh()}
         >
           <RefreshCw size={17} />
@@ -237,16 +238,16 @@ export function AgentWorkspace({
       <div className="safety-note">
         <ShieldCheck size={18} />
         <span>
-          Story changes require your approval. Tasks use saved story data.
+          助手使用已保存的故事数据，修改操作需要你的批准。
         </span>
       </div>
       <form className="agent-composer" onSubmit={start}>
-        <label htmlFor="agent-prompt">What would you like to work on?</label>
+        <label htmlFor="agent-prompt">描述这次任务</label>
         <textarea
           id="agent-prompt"
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
-          placeholder="Find the established facts about the lighthouse, then suggest a consistent next scene…"
+          placeholder="例如：核对灯塔设定与第一章是否一致，并整理人物提案。"
           rows={3}
           required
           maxLength={20000}
@@ -257,13 +258,13 @@ export function AgentWorkspace({
             checked={useMcp}
             onChange={(event) => setUseMcp(event.target.checked)}
           />{" "}
-          Allow enabled MCP tools for this task
+          允许本次任务使用已启用的 MCP 工具
         </label>
         <div className="composer-footer">
           <small>
             {draftDirty
-              ? "Save your manuscript before starting or approving a task."
-              : "Bounded to 6 rounds · 12 tool calls · 60 seconds"}
+              ? "请先保存正文，再开始任务或批准操作。"
+              : "上限 6 轮 · 12 次工具调用 · 60 秒"}
           </small>
           <button
             className="primary"
@@ -274,7 +275,7 @@ export function AgentWorkspace({
               runs.some((item) => activeStates.has(item.status))
             }
           >
-            <Play size={14} /> Start task
+            <Play size={14} /> 开始任务
           </button>
         </div>
       </form>
@@ -282,22 +283,22 @@ export function AgentWorkspace({
         <div className="inline-error" role="alert">
           {error}
           <button className="text-button" onClick={() => void refresh()}>
-            Retry
+            重试
           </button>
         </div>
       )}
       {loading ? (
         <p className="loading-state" role="status">
-          <LoaderCircle size={18} className="spin" /> Loading tasks…
+          <LoaderCircle size={18} className="spin" /> 正在加载任务…
         </p>
       ) : (
         <div className="agent-layout">
-          <nav className="task-list" aria-label="Agent task history">
+          <nav className="task-list" aria-label="助手任务记录">
             <h2>
-              Task history <span>{runs.length}</span>
+              最近任务 <span>{runs.length}</span>
             </h2>
             {runs.length === 0 && (
-              <p className="muted small">Your first task will appear here.</p>
+              <p className="muted small">任务记录会显示在这里。</p>
             )}
             {runs.map((item) => (
               <button
@@ -320,7 +321,7 @@ export function AgentWorkspace({
                   <div>
                     <span className={`badge ${run.is_mock ? "warning" : ""}`}>
                       {run.is_mock
-                        ? "Mock · deterministic demo"
+                        ? "演示模型 · 固定输出"
                         : `${run.provider} · ${run.model}`}
                     </span>
                     <h2>{run.prompt}</h2>
@@ -335,7 +336,7 @@ export function AgentWorkspace({
                       disabled={busy}
                       onClick={() => void act("cancel")}
                     >
-                      <CircleStop size={15} /> Cancel task
+                      <CircleStop size={15} /> 取消任务
                     </button>
                   )}
                 </div>
@@ -353,25 +354,25 @@ export function AgentWorkspace({
                       </div>
                       <div className="step-content">
                         <div className="step-heading">
-                          <strong>{step.tool_name || "Model reasoning"}</strong>
+                          <strong>{step.tool_name || "模型处理"}</strong>
                           <span className="badge">
                             {statusLabel(step.status)}
                           </span>
                         </div>
                         {step.kind === "tool" && (
                           <small className="muted">
-                            Tool call · {step.tool_name}
+                            工具调用 · {step.tool_name}
                           </small>
                         )}
                         {step.arguments && (
                           <details open={step.status === "waiting_approval"}>
-                            <summary>Arguments</summary>
+                            <summary>操作参数</summary>
                             <pre>{JSON.stringify(step.arguments, null, 2)}</pre>
                           </details>
                         )}
                         {step.result != null && (
                           <details>
-                            <summary>Result</summary>
+                            <summary>执行结果</summary>
                             <pre>
                               {typeof step.result === "string"
                                 ? step.result
@@ -384,8 +385,7 @@ export function AgentWorkspace({
                           <div className="approval-card">
                             <ShieldCheck size={18} />
                             <p>
-                              Review the exact arguments above. Approving
-                              permits this tool call to change your story data.
+                              请核对以上参数。批准只授权这一次工具调用，设定提案仍需独立审核后采纳。
                             </p>
                             <div className="review-actions">
                               <button
@@ -397,7 +397,7 @@ export function AgentWorkspace({
                                   })
                                 }
                               >
-                                <Check size={14} /> Approve action
+                                <Check size={14} /> 批准操作
                               </button>
                               <button
                                 className="secondary"
@@ -408,7 +408,7 @@ export function AgentWorkspace({
                                   })
                                 }
                               >
-                                <X size={14} /> Reject
+                                <X size={14} /> 拒绝
                               </button>
                             </div>
                           </div>
@@ -424,13 +424,13 @@ export function AgentWorkspace({
                 )}
                 {run.output && (
                   <section className="agent-output">
-                    <h3>Task response</h3>
+                    <h3>任务回复</h3>
                     <p>{run.output}</p>
                   </section>
                 )}
                 {Boolean(run.sources?.length) && (
                   <section>
-                    <h3>Referenced story sources</h3>
+                    <h3>引用的故事来源</h3>
                     <SourceList sources={run.sources!} />
                   </section>
                 )}
@@ -438,10 +438,9 @@ export function AgentWorkspace({
             ) : (
               <div className="panel-empty">
                 <Bot size={32} strokeWidth={1.3} />
-                <h2>Make room for the story</h2>
+                <h2>从一个明确任务开始</h2>
                 <p>
-                  Ask your agent to find a detail, check continuity, or prepare
-                  a proposal. Its steps and sources will appear here.
+                  查找设定、检查连续性，或整理待审提案。每一步执行及其来源都会保留。
                 </p>
               </div>
             )}

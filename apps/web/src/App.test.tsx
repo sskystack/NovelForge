@@ -4,7 +4,7 @@ import { App } from "./App";
 
 const user = { id: "user-1", email: "writer@example.com", display_name: "Writer" };
 const novel = { id: "novel-1", title: "Star Sea", premise: "", status: "active" };
-const chapter = { id: "chapter-1", title: "Chapter 1", chapter_number: 1, current_version: 1, status: "planned", summary: "" };
+const chapter = { id: "chapter-1", title: "第一章", chapter_number: 1, current_version: 1, status: "planned", summary: "" };
 const emptyVersion = { id: "version-1", version_number: 1, content_format: "tiptap", tiptap_json: { type: "doc", content: [] }, markdown: null, created_at: "2026-11-07T00:00:00Z" };
 const apiBase = "";
 
@@ -27,8 +27,8 @@ describe("NovelForge workspace", () => {
     });
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: "Chapter 1" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Chapter 1" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "第一章" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "第一章" })).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/novels/novel-1/chapters?limit=100`, expect.objectContaining({ credentials: "include" }));
   });
 
@@ -43,9 +43,9 @@ describe("NovelForge workspace", () => {
       return response({}, 404);
     });
     render(<App />);
-    fireEvent.change(await screen.findByLabelText("Email"), { target: { value: user.email } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct horse battery staple" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    fireEvent.change(await screen.findByLabelText("邮箱"), { target: { value: user.email } });
+    fireEvent.change(screen.getByLabelText("密码"), { target: { value: "correct horse battery staple" } });
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/auth/login`, expect.objectContaining({
       method: "POST",
@@ -64,12 +64,12 @@ describe("NovelForge workspace", () => {
       return response({}, 404);
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Create your first project" });
-    const input = screen.getAllByLabelText("New project title")[0];
+    await screen.findByRole("heading", { name: "创建第一部作品" });
+    const input = screen.getAllByLabelText("快速新建作品名称")[0];
     fireEvent.change(input, { target: { value: "Star Sea" } });
     fireEvent.submit(input.closest("form")!);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/novels`, expect.objectContaining({ method: "POST" })));
-    expect(await screen.findByRole("heading", { name: "No chapters yet" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "还没有章节" })).toBeTruthy();
   });
 
   it("saves the selected editor mode with the current ETag", async () => {
@@ -84,11 +84,11 @@ describe("NovelForge workspace", () => {
       return response({}, 404);
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
+    await screen.findByRole("heading", { name: "第一章" });
     fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-    const source = screen.getByLabelText("Markdown source");
+    const source = screen.getByLabelText("Markdown 源码");
     fireEvent.change(source, { target: { value: "# Draft" } });
-    fireEvent.click(screen.getAllByRole("button", { name: /Save/ }).find((button) => !button.hasAttribute("disabled"))!);
+    fireEvent.click(screen.getAllByRole("button", { name: /保存/ }).find((button) => !button.hasAttribute("disabled"))!);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/novels/novel-1/chapters/chapter-1`, expect.objectContaining({
       method: "PATCH",
       headers: expect.objectContaining({ "if-match": '"1"' }),
@@ -108,11 +108,11 @@ describe("NovelForge workspace", () => {
       return response({}, 404);
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
-    fireEvent.click(screen.getAllByRole("button", { name: /Generate preview/ }).find((button) => !button.hasAttribute("disabled"))!);
-    expect(await screen.findByRole("heading", { name: "Generated draft" })).toBeTruthy();
+    await screen.findByRole("heading", { name: "第一章" });
+    fireEvent.click(screen.getAllByRole("button", { name: /生成预览/ }).find((button) => !button.hasAttribute("disabled"))!);
+    expect(await screen.findByRole("heading", { name: "生成内容预览" })).toBeTruthy();
     expect(screen.getByText("Preview only")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Accept as new version/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /采纳为新版本/ })).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/api/v1/novels/novel-1/ai/generations`, expect.objectContaining({ method: "POST" }));
   });
 });
@@ -136,41 +136,41 @@ describe("workspace runtime regressions", () => {
   it("opens guided project setup from the first-project empty state", async () => {
     mockWorkspace((url) => url.endsWith("/novels") ? Promise.resolve(response([])) : undefined);
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "Name your story" }));
-    expect(await screen.findByRole("dialog", { name: "Start your story" })).toBeTruthy();
-    expect(screen.getByLabelText("Story title")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "新建作品向导" }));
+    expect(await screen.findByRole("dialog", { name: "新建作品" })).toBeTruthy();
+    expect(screen.getByLabelText("作品名称")).toBeTruthy();
   });
 
   it("does not open project setup over an unsaved chapter", async () => {
     mockWorkspace(); render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
+    await screen.findByRole("heading", { name: "第一章" });
     fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-    fireEvent.change(screen.getByLabelText("Markdown source"), { target: { value: "Keep this manuscript" } });
-    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    fireEvent.change(screen.getByLabelText("Markdown 源码"), { target: { value: "Keep this manuscript" } });
+    fireEvent.click(screen.getByRole("button", { name: "新建作品" }));
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect((await screen.findByRole("alert")).textContent).toContain("Save your current changes");
-    expect((screen.getByLabelText("Markdown source") as HTMLTextAreaElement).value).toBe("Keep this manuscript");
+    expect((await screen.findByRole("alert")).textContent).toContain("请先保存当前修改");
+    expect((screen.getByLabelText("Markdown 源码") as HTMLTextAreaElement).value).toBe("Keep this manuscript");
   });
 
   it("keeps an unsaved manuscript when visiting a different workspace section", async () => {
     mockWorkspace((url) => url.endsWith("/knowledge/documents") ? Promise.resolve(response([])) : undefined);
     render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
+    await screen.findByRole("heading", { name: "第一章" });
     fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-    fireEvent.change(screen.getByLabelText("Markdown source"), { target: { value: "A draft that stays on the desk" } });
-    fireEvent.click(screen.getByRole("button", { name: "Story knowledge" }));
-    await screen.findByRole("heading", { name: "Story knowledge" });
-    fireEvent.click(screen.getByRole("button", { name: /^Manuscript/ }));
-    expect((screen.getByLabelText("Markdown source") as HTMLTextAreaElement).value).toBe("A draft that stays on the desk");
-    expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Markdown 源码"), { target: { value: "A draft that stays on the desk" } });
+    fireEvent.click(screen.getByRole("button", { name: "知识与设定" }));
+    await screen.findByRole("heading", { name: "知识与设定" });
+    fireEvent.click(screen.getByRole("button", { name: /^书稿/ }));
+    expect((screen.getByLabelText("Markdown 源码") as HTMLTextAreaElement).value).toBe("A draft that stays on the desk");
+    expect(screen.getByText("有未保存修改")).toBeTruthy();
   });
 
   it("saves the draft with the desktop keyboard shortcut and current ETag", async () => {
     const fetchMock = mockWorkspace((url, init) => url.endsWith("/chapters/chapter-1") && init?.method === "PATCH" ? Promise.resolve(response({ ...chapter, current_version: 2 }, 200, { ETag: '"2"' })) : undefined);
     render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
+    await screen.findByRole("heading", { name: "第一章" });
     fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-    const source = screen.getByLabelText("Markdown source");
+    const source = screen.getByLabelText("Markdown 源码");
     fireEvent.change(source, { target: { value: "Saved from the keyboard" } });
     fireEvent.keyDown(source, { key: "s", metaKey: true });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/chapters/chapter-1"), expect.objectContaining({ method: "PATCH", headers: expect.objectContaining({ "if-match": '"1"' }), body: JSON.stringify({ content_format: "markdown", markdown: "Saved from the keyboard" }) })));
@@ -179,12 +179,12 @@ describe("workspace runtime regressions", () => {
   it("does not discard an unsaved draft when switching chapters", async () => {
     const fetchMock = mockWorkspace();
     render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
+    await screen.findByRole("heading", { name: "第一章" });
     fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-    fireEvent.change(screen.getByLabelText("Markdown source"), { target: { value: "不能丢失的正文" } });
+    fireEvent.change(screen.getByLabelText("Markdown 源码"), { target: { value: "不能丢失的正文" } });
     fireEvent.click(screen.getByRole("button", { name: "2. Second" }));
-    expect((screen.getByLabelText("Markdown source") as HTMLTextAreaElement).value).toBe("不能丢失的正文");
-    expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("Save your current changes"));
+    expect((screen.getByLabelText("Markdown 源码") as HTMLTextAreaElement).value).toBe("不能丢失的正文");
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("请先保存当前修改"));
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/chapters/chapter-2"))).toBe(false);
   });
 
@@ -193,42 +193,42 @@ describe("workspace runtime regressions", () => {
     mockWorkspace((url, init) => url.endsWith("/chapters/chapter-1") && init?.method === "PATCH"
       ? new Promise((resolve) => { completeSave = resolve; }) : undefined);
     render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
+    await screen.findByRole("heading", { name: "第一章" });
     fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-    fireEvent.change(screen.getByLabelText("Markdown source"), { target: { value: "First save" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.change(screen.getByLabelText("Markdown 源码"), { target: { value: "First save" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(completeSave).toBeTypeOf("function"));
-    fireEvent.change(screen.getByLabelText("Markdown source"), { target: { value: "Newer unsaved edit" } });
+    fireEvent.change(screen.getByLabelText("Markdown 源码"), { target: { value: "Newer unsaved edit" } });
     completeSave(response({ ...chapter, current_version: 2 }, 200, { ETag: '"2"' }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(false));
-    expect((screen.getByLabelText("Markdown source") as HTMLTextAreaElement).value).toBe("Newer unsaved edit");
-    expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("button", { name: "保存" }).hasAttribute("disabled")).toBe(false));
+    expect((screen.getByLabelText("Markdown 源码") as HTMLTextAreaElement).value).toBe("Newer unsaved edit");
+    expect(screen.getByText("有未保存修改")).toBeTruthy();
   });
 
   it("shows failed generation errors instead of an empty preview", async () => {
     mockWorkspace((url) => url.endsWith("/ai/generations") ? Promise.resolve(response({ id: "failed", status: "failed", output: {}, error_message: "Provider is not configured" }, 202)) : undefined);
     render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
-    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
+    await screen.findByRole("heading", { name: "第一章" });
+    fireEvent.click(screen.getByRole("button", { name: "生成预览" }));
     expect((await screen.findByRole("alert")).textContent).toContain("Provider is not configured");
-    expect(screen.queryByRole("heading", { name: "Generated draft" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "生成内容预览" })).toBeNull();
   });
 
   it("prevents accepting an AI preview over an unsaved draft", async () => {
     mockWorkspace((url) => url.endsWith("/ai/generations") ? Promise.resolve(response({ id: "draft", status: "succeeded", output: { markdown: "Preview" } }, 202)) : undefined);
     render(<App />);
-    await screen.findByRole("heading", { name: "Chapter 1" });
-    fireEvent.click(screen.getByRole("button", { name: "Generate preview" }));
-    await screen.findByRole("heading", { name: "Generated draft" });
+    await screen.findByRole("heading", { name: "第一章" });
+    fireEvent.click(screen.getByRole("button", { name: "生成预览" }));
+    await screen.findByRole("heading", { name: "生成内容预览" });
     fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-    expect(screen.getByRole("button", { name: "Accept as new version" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "采纳为新版本" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("reports startup connectivity errors with a retry action", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Network failed"));
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Unable to start NovelForge" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+    expect(await screen.findByRole("heading", { name: "NovelForge 无法启动" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "重试" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "登录" })).toBeNull();
   });
 });

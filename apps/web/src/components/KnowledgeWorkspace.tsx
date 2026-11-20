@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Check, Library, Plus, Search, X } from "lucide-react";
 import { api, csrfHeaders } from "../api";
-import { SourceList } from "./AgentWorkspace";
 import type { Source } from "./AgentWorkspace";
 type KnowledgeDocument = {
   id: string;
@@ -17,6 +16,7 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
   const [query, setQuery] = useState("");
   const [includeDrafts, setIncludeDrafts] = useState(false);
   const [sources, setSources] = useState<Source[]>([]);
+  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
   const [searched, setSearched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -37,7 +37,7 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
       setError(
         error instanceof Error
           ? error.message
-          : "Could not load indexed material.",
+          : "无法加载资料列表。",
       ),
     );
   }, [loadDocuments]);
@@ -68,26 +68,26 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
       if (data.status === "failed")
         throw new Error(
           data.error_message ||
-            "Indexing failed. Your source is listed below for review.",
+            "索引失败，已保存的资料显示在下方，请检查。",
         );
       setTitle("");
       setContent("");
       setAdding(false);
       setNotice(
-        "Story material indexed. Search it using the visibility filter below.",
+        "资料已保存并索引，可按可见范围筛选检索。",
       );
       try {
         await loadDocuments();
       } catch {
         setError(
-          "Your material was saved, but the document list could not refresh. Reopen Story knowledge to reload it.",
+          "资料已保存，但列表刷新失败。重新进入知识与设定可再次加载。",
         );
       }
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : "Could not index material. Your entered text is preserved.",
+          : "索引失败，输入内容已保留。",
       );
     } finally {
       setBusy(false);
@@ -103,12 +103,13 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
         `/novels/${novelId}/knowledge/search?query=${encodeURIComponent(query.trim())}&include_drafts=${includeDrafts}&limit=20`,
       );
       setSources(data.results);
+      setSelectedSource(data.results[0] || null);
       setSearched(true);
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : "Search failed. Try a narrower query.",
+          : "检索失败，请缩小关键词范围后重试。",
       );
     } finally {
       setBusy(false);
@@ -118,10 +119,10 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
     <section className="tool-workspace" aria-labelledby="knowledge-title">
       <header className="section-header">
         <div>
-          <p className="eyebrow">The details that hold a world together</p>
-          <h1 id="knowledge-title">Story knowledge</h1>
+          <p className="eyebrow">故事资料</p>
+          <h1 id="knowledge-title">知识与设定</h1>
           <p className="muted">
-            Search indexed story material and inspect its source revision.
+            检索已保存资料，核对每一条来源。
           </p>
         </div>
         <button
@@ -129,28 +130,27 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
           onClick={() => setAdding((value) => !value)}
         >
           {adding ? <X size={15} /> : <Plus size={15} />}
-          {adding ? "Close material form" : "Add material"}
+          {adding ? "收起资料表单" : "添加资料"}
         </button>
       </header>
       {adding && (
         <form className="material-form settings-form" onSubmit={ingest}>
-          <h2>Add story material</h2>
+          <h2>添加故事资料</h2>
           <p className="small muted">
-            Indexing uses your configured embedding provider. Add only material
-            you want that provider to process.
+            索引会使用已配置的嵌入服务，请仅提交允许该服务处理的资料。
           </p>
           <label>
-            Material title
+            资料标题
             <input
               required
               maxLength={500}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="A character note, scene reference, or world detail"
+              placeholder="人物笔记、场景参考或世界观细节"
             />
           </label>
           <label>
-            Source text
+            资料正文
             <textarea
               required
               maxLength={200000}
@@ -160,16 +160,16 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
             />
           </label>
           <label>
-            Visibility
+            可见范围
             <select
               value={visibility}
               onChange={(event) => setVisibility(event.target.value)}
             >
-              <option value="draft">Draft — include only when requested</option>
+              <option value="draft">草稿 · 仅显式包含时检索</option>
               <option value="approved">
-                Approved — available to story retrieval
+                已批准 · 可用于故事检索
               </option>
-              <option value="private">Private — excluded from retrieval</option>
+              <option value="private">私有 · 不参与检索</option>
             </select>
           </label>
           <button
@@ -177,7 +177,7 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
             disabled={busy || !title.trim() || !content.trim()}
           >
             <Check size={15} />
-            {busy ? "Indexing…" : "Index material"}
+            {busy ? "正在索引…" : "保存并索引"}
           </button>
         </form>
       )}
@@ -189,20 +189,20 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
       )}
       <form className="knowledge-search" onSubmit={search}>
         <label htmlFor="knowledge-query" className="field-label">
-          Search your story
+          检索故事资料
         </label>
         <div className="search-input">
           <Search size={18} />
           <input
             id="knowledge-query"
-            placeholder="A character, place, event, or detail…"
+            placeholder="搜索人物、地点、事件或细节…"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             required
             maxLength={2000}
           />
           <button className="primary" disabled={busy || !query.trim()}>
-            {busy ? "Searching…" : "Search"}
+            {busy ? "正在检索…" : "搜索"}
           </button>
         </div>
         <label className="checkbox-label">
@@ -211,7 +211,7 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
             checked={includeDrafts}
             onChange={(event) => setIncludeDrafts(event.target.checked)}
           />{" "}
-          Include draft material
+          包含草稿资料
         </label>
       </form>
       {error && (
@@ -221,30 +221,44 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
       )}
       {searched && (
         <p className="muted small" role="status">
-          {sources.length} matching sources ·{" "}
+          {sources.length} 条来源 ·{" "}
           {includeDrafts
-            ? "approved and draft material"
-            : "approved material only"}
+            ? "已批准与草稿资料"
+            : "仅已批准资料"}
         </p>
       )}
       {sources.length ? (
-        <SourceList sources={sources} />
+        <div className="knowledge-results">
+          <div className="result-list" aria-label="检索结果">
+            {sources.map((source, index) => <button key={source.chunk_id || index} className={`result-card ${selectedSource === source ? "active" : ""}`} onClick={() => setSelectedSource(source)} aria-pressed={selectedSource === source}>
+              <strong>{source.title || "故事来源"}</strong>
+              <small>{source.source_type?.replaceAll("_", " ")} · 修订 {source.source_revision ?? "—"}</small>
+              <p>{source.content}</p>
+            </button>)}
+          </div>
+          {selectedSource && <aside className="source-detail" aria-label="来源详情">
+            <h2>来源详情</h2><h3>{selectedSource.title || "故事来源"}</h3>
+            <span className="badge">修订 {selectedSource.source_revision ?? "—"}</span>
+            <p>{selectedSource.content || "未返回来源摘要。"}</p>
+            <small className="source-id">来源 {selectedSource.source_id || selectedSource.document_id || selectedSource.chunk_id || "无来源标识"}</small>
+          </aside>}
+        </div>
       ) : (
         <div className="panel-empty">
           <Library size={34} strokeWidth={1.3} />
           <h2>
-            {searched ? "No matching sources yet" : "Every detail has a place"}
+            {searched ? "没有找到匹配资料" : "让每个细节有据可查"}
           </h2>
           <p>
             {searched
-              ? "Try a different phrase. Approved story facts and saved chapter material become searchable when indexed."
-              : "Find the established facts behind your next scene. Results keep their source identity and revision so you can check them."}
+              ? "换个关键词，或先添加资料。已保存的故事资料完成索引后即可检索。"
+              : "查找下一场景所需的已知事实。结果保留来源和修订，便于核对。"}
           </p>
         </div>
       )}
       <section className="indexed-material">
         <h2>
-          Indexed material <span>{documents.length}</span>
+          已索引资料 <span>{documents.length}</span>
         </h2>
         {documents.length ? (
           documents.map((document) => (
@@ -252,7 +266,7 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
               <div>
                 <strong>{document.title}</strong>
                 <small>
-                  revision {document.source_revision} · {document.visibility}
+                  修订 {document.source_revision} · {document.visibility}
                 </small>
                 {document.error_message && (
                   <p className="error">{document.error_message}</p>
@@ -263,7 +277,7 @@ export function KnowledgeWorkspace({ novelId }: { novelId: string }) {
           ))
         ) : (
           <p className="muted small">
-            No material indexed yet. Add a story reference to begin.
+            还没有索引资料。添加一份故事参考即可开始。
           </p>
         )}
       </section>

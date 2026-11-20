@@ -26,3 +26,7 @@ Packaged-service smoke test:
 ```sh
 uv run --project apps/api --extra dev python scripts/smoke_desktop.py --sidecar apps/desktop/src-tauri/binaries/novelforge-api-aarch64-apple-darwin
 ```
+
+## macOS application icon
+
+The bundle explicitly includes `icons/icon.icns` and macOS PNG representations. Run `python scripts/verify_macos_bundle.py /path/to/NovelForge.dmg` after packaging to check the actual `CFBundleIconFile`, embedded icon data and nested signatures. See `docs/MACOS_ICON_PACKAGING.md`. Opening a new DMG alone does not replace an older application already in `/Applications`.
